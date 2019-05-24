@@ -9,7 +9,7 @@ class AbstractInitializer {
 public:
     AbstractInitializer(size_t dim) : dim_(dim) {
     }
-    inline virtual void Initialize(std::vector<FloatT>* data) = 0;
+    virtual void Initialize(std::vector<FloatT>* data) const = 0;
     virtual ~AbstractInitializer() = default;
 
     inline size_t GetDim() const {
@@ -25,7 +25,7 @@ public:
     VectorizingInitializer(size_t dim) : AbstractInitializer(dim) {
     }
 
-    inline void Initialize(std::vector<FloatT>* data) override {
+    inline void Initialize(std::vector<FloatT>* data) const override {
         data->resize(GetDim());
         for (size_t i = 0; i < data->size(); ++i) {
             (*data)[i] = GetIthElem(i);
@@ -33,7 +33,7 @@ public:
     }
 
 protected:
-    inline virtual FloatT GetIthElem(size_t i) = 0;
+    virtual FloatT GetIthElem(size_t i) const = 0;
 };
 
 class ZeroInitializer final : public VectorizingInitializer {
@@ -42,7 +42,7 @@ public:
     }
 
 protected:
-    inline FloatT GetIthElem(size_t) override {
+    inline FloatT GetIthElem(size_t) const override {
         return 0;
     }
 };
@@ -55,7 +55,7 @@ public:
     }
 
 protected:
-    inline FloatT GetIthElem(size_t) override {
+    inline FloatT GetIthElem(size_t) const override {
         return dist_(*rd_);
     }
 

@@ -7,61 +7,103 @@
 
 #include <array>
 #include <memory>
+#include <exception>
 
-template <class BaseT>
-class AbstractKernel {
-public:
-    void Evolve(const Particle& from, Particle* output);
-    virtual FloatT GetTransDensity(const Particle& from, const Particle& to) = 0;
-    virtual ~AbstractKernel() = default;
+template <class DerivedT>
+struct CRTPDerivedCaster {
+    DerivedT* GetDerived() {
+        return static_cast<DerivedT>(this);
+    }
 };
 
-class AbstractConditionedKernel {
+template <class DerivedT>
+class AbstractKernel : public CRTPDerivedCaster<DerivedT> {
 public:
-    virtual void EvolveConditionally(const Particle& from, Particle* output, size_t condition) = 0;
-    virtual void GetTransDensityConditionally(const Particle& from, const Particle& to,
-                                              size_t condition) = 0;
-    virtual ~AbstractConditionedKernel() = default;
+    void Evolve(const Particle& from, Particle* output) {
+        this->GetDerived()->Evolve(from, output);
+    }
+    FloatT GetTransDensity(const Particle& from, const Particle& to) {
+        return this->GetDerived()->GetTransDensity(from, to);
+    }
 };
 
-template <size_t num_kernels>
-class ActionConditionedKernel final : public AbstractConditionedKernel {
+template <class DerivedT>
+class AbstractConditionedKernel : public CRTPDerivedCaster<DerivedT> {
 public:
-    using KernelArrayT = std::array<std::unique_ptr<AbstractKernel>, num_kernels>;
-
-    ActionConditionedKernel(KernelArrayT&& fixed_action_kernels)
-        : fixed_action_kernels_(std::move(fixed_action_kernels)) {
+    void EvolveConditionally(const Particle& from, Particle* output, size_t condition) {
+        this->GetDerived()->EvolveConditionally(from, output, condition);
     }
 
-    void EvolveConditionally(const Particle& from, Particle* output,
-                             size_t action_number) override {
-        auto& kernel = fixed_action_kernels_[action_number];
-        kernel.Evolve(from, output);
+    FloatT GetTransDensityConditionally(const Particle& from, const Particle& to,
+                                        size_t condition) {
+        return this->GetDerived()->GetTransDensityConditionally(from, to, condition);
     }
+};
+
+template <class... T>
+class ActionConditionedKernel final
+    : public AbstractConditionedKernel<ActionConditionedKernel<T...>> {
+public:
+    ActionConditionedKernel(T&&... args) : fixed_action_kernels_(std::forward<T>(args)...) {
+    }
+
+    void EvolveConditionally(const Particle& from, Particle* output, size_t action_number) {
+        EvolveHelper helper{from, output};
+        CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
+    }
+
+    FloatT GetTransDensityConditionally(const Particle& from, const Particle& to,
+                                        size_t action_number) {
+        FloatT result;
+        DensityHelper helper{from, to, result};
+        CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
+        return result;
+    }
+
+    struct EvolveHelper {
+        const Particle& from;
+        Particle* to;
+
+        template <class Ker>
+        void operator()(const Ker& kernel) {
+            kernel.Evolve(from, to);
+        }
+    };
+
+    struct DensityHelper {
+        const Particle& from;
+        const Particle& to;
+        FloatT& result;
+
+        template <class Ker>
+        void operator()(const Ker& kernel) {
+            result = kernel.GetTransDensity(from, to);
+        }
+    };
 
 private:
-    KernelArrayT fixed_action_kernels_;
+    std::tuple<T...> fixed_action_kernels_;
 };
 
-template <size_t num_kernels>
-class MDPKernel final : public AbstractKernel {
+template <class... T>
+class MDPKernel final : public AbstractKernel<MDPKernel<T...>> {
 public:
-    MDPKernel(ActionConditionedKernel<num_kernels>&& action_conditioned_kernel,
+    MDPKernel(ActionConditionedKernel<T...>&& action_conditioned_kernel,
               AbstractAgentPolicy* agent_policy)
         : conditioned_kernel_(std::move(action_conditioned_kernel)), agent_policy_(agent_policy) {
     }
 
-    void Evolve(const Particle& from, Particle* output) override {
+    void Evolve(const Particle& from, Particle* output) {
         size_t action_num = agent_policy_->React(from);
         conditioned_kernel_.EvolveConditionally(from, output, action_num);
     }
 
-    FloatT GetTransDensity(const Particle& from, const Particle& to) override {
+    FloatT GetTransDensity(const Particle& from, const Particle& to) {
         size_t action_num = agent_policy_->React(from);
         return conditioned_kernel_.GetTransDensityConditionally(from, to, action_num);
     }
 
 private:
-    ActionConditionedKernel<num_kernels> conditioned_kernel_;
+    ActionConditionedKernel<T...> conditioned_kernel_;
     AbstractAgentPolicy* agent_policy_{nullptr};
 };
