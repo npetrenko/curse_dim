@@ -15,11 +15,13 @@ class AbstractKernel : public CRTPDerivedCaster<DerivedT> {
 public:
     template <class S1, class S2>
     void Evolve(const Particle<S1>& from, Particle<S2>* output) const {
+        assert(from.GetDim() == output->GetDim());
         this->GetDerived()->Evolve(from, output);
     }
 
     template <class S1, class S2>
     FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
+        assert(from.GetDim() == to.GetDim());
         return this->GetDerived()->GetTransDensity(from, to);
     }
 };

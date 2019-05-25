@@ -16,6 +16,19 @@ public:
         initializer.Initialize(&data_);
     }
 
+    template <class S>
+    Particle(const Particle<S>& other) : data_{other.GetDim()} {
+        static_assert(!std::is_same_v<StorageT, MemoryView>,
+                      "One shouldn't explicitly copy-initialize memory view");
+        std::copy(other.data_.begin(), other.data_.end(), data_.begin());
+    }
+
+    template <class S>
+    Particle& operator=(const Particle<S>& other) {
+        assert(GetDim() == other.GetDim());
+        std::copy(other.data_.begin(), other.data_.end(), data_.begin());
+    }
+
     size_t GetDim() const {
         return data_.size();
     }
@@ -30,15 +43,56 @@ public:
 
     template <class T>
     bool operator==(const Particle<T>& other) const {
-	if (GetDim() != other.GetDim()) {
-	    return false;
-	}
-	for (size_t i = 0; i < GetDim(); ++i) {
-	    if ((*this)[i] != other[i]) {
-		return false;
-	    }
-	}
-	return true;
+        if (GetDim() != other.GetDim()) {
+            return false;
+        }
+        for (size_t i = 0; i < GetDim(); ++i) {
+            if ((*this)[i] != other[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    Particle& operator*=(FloatT val) {
+        for (auto& x : data_) {
+            x *= val;
+        }
+        return *this;
+    }
+
+    FloatT NormSquared() const {
+        FloatT norm{0};
+        for (auto& x : data_) {
+            norm += x * x;
+        }
+
+        return norm;
+    }
+
+    template <class S>
+    Particle& operator-=(const Particle<S>& other) {
+        for (size_t i = 0; i < GetDim(); ++i) {
+            (*this)[i] -= other[i];
+        }
+
+        return *this;
+    }
+
+    template <class S>
+    Particle& operator+=(const Particle<S>& other) {
+        for (size_t i = 0; i < GetDim(); ++i) {
+            (*this)[i] += other[i];
+        }
+
+        return *this;
+    }
+
+    template <class S>
+    Particle<ParticleStorage> operator-(const Particle<S>& other) {
+        Particle<ParticleStorage> copy{*this};
+        copy -= other;
+        return copy;
     }
 
     template <class S>
@@ -57,12 +111,12 @@ std::ostream& operator<<(std::ostream& stream, const Particle<StorageT>& part) {
 class ParticleCluster : private std::vector<Particle<MemoryView>> {
 public:
     template <class DerivedT>
-    ParticleCluster(size_t size, AbstractInitializer<DerivedT, MemoryView> initializer)
+    ParticleCluster(size_t size, const AbstractInitializer<DerivedT, MemoryView>& initializer)
         : storage_(size * initializer.GetDim()) {
         initializer.SetStorage(&storage_);
         this->reserve(size);
         for (size_t i = 0; i < size; ++i) {
-            this->emplace_back({initializer});
+            this->emplace_back(initializer);
         }
     }
 
@@ -96,7 +150,7 @@ public:
     }
 
     inline size_t size() const {
-	return ParentT::size();
+        return ParentT::size();
     }
 
 private:

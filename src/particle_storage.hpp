@@ -48,11 +48,11 @@ public:
     }
 
     inline FloatT& operator[](size_t pos) {
-	return data_[pos];
+        return data_[pos];
     }
 
     inline FloatT operator[](size_t pos) const {
-	return data_[pos];
+        return data_[pos];
     }
 
     inline size_t size() const {
@@ -75,13 +75,13 @@ private:
 class ParticleStorage : private std::vector<FloatT> {
 public:
     ParticleStorage(size_t max_size) {
-	std::vector<FloatT>::resize(max_size);
+        std::vector<FloatT>::resize(max_size);
         current_pos_ = 0;
     }
 
     inline void resize(size_t size) {
-	assert(size <= this->size());
-	std::vector<FloatT>::resize(size);
+        assert(size <= this->size());
+        std::vector<FloatT>::resize(size);
     }
 
     inline MemoryView AllocateForParticle(size_t size) {
@@ -95,11 +95,11 @@ public:
     }
 
     inline FloatT& operator[](size_t pos) {
-	return *(this->begin() + pos);
+        return *(this->begin() + pos);
     }
 
     inline FloatT operator[](size_t pos) const {
-	return *(this->begin() + pos);
+        return *(this->begin() + pos);
     }
 
     inline iterator begin() {
@@ -119,7 +119,11 @@ public:
     }
 
     inline size_t size() const {
-	return std::vector<FloatT>::size();
+        return std::vector<FloatT>::size();
+    }
+
+    void Clear() {
+        current_pos_ = 0;
     }
 
 private:

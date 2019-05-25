@@ -17,7 +17,7 @@ public:
         : storage_{storage}, dim_{dim} {
     }
 
-    void SetStorage(ParticleStorage* storage) {
+    void SetStorage(ParticleStorage* storage) const {
         storage_ = storage;
     }
 
@@ -40,7 +40,7 @@ public:
     }
 
 private:
-    ParticleStorage* storage_
+    mutable ParticleStorage* storage_
 #ifndef NDEBUG
     {
         nullptr
@@ -65,6 +65,25 @@ public:
 
 private:
     using BaseT = AbstractInitializer<EmptyInitializer<StorageT>, StorageT>;
+};
+
+template <class OtherContainer>
+class ValueInitializer : public AbstractInitializer<ValueInitializer<MemoryView>, MemoryView> {
+public:
+    ValueInitializer(const OtherContainer& other, ParticleStorage* storage)
+        : BaseT{other.GetDim(), storage}, other_{other} {
+    }
+
+    template <class Container>
+    inline void Initialize(Container* data) const {
+	for (size_t i = 0; i < data->size(); ++i) {
+	    (*data)[i] = other_[i];
+	}
+    }
+
+private:
+    using BaseT = AbstractInitializer<ValueInitializer<MemoryView>, MemoryView>;
+    const OtherContainer& other_;
 };
 
 template <class DerivedT, class StorageT>
@@ -140,7 +159,8 @@ public:
         : BaseT{dim, storage}, rd_{rd}, dist_{std::move(dist)} {
     }
 
-    friend class BaseT;
+    friend class VectorizingInitializer<
+        RandomVectorizingInitializer<StorageT, RandomDistT, RandomDevT>, StorageT>;
 
 private:
     inline FloatT GetIthElemImpl(size_t) const {
@@ -148,8 +168,8 @@ private:
     }
 
     using BaseT =
-        VectorizingInitializer<RandomVectorizingInitializer<RandomDistT, RandomDevT, StorageT>,
+        VectorizingInitializer<RandomVectorizingInitializer<StorageT, RandomDistT, RandomDevT>,
                                StorageT>;
     RandomDevT* rd_;
-    RandomDistT dist_;
+    mutable RandomDistT dist_;
 };
