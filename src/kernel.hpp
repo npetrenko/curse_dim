@@ -84,6 +84,10 @@ public:
         }
     };
 
+    static inline size_t GetDim() {
+	return sizeof...(T);
+    }
+
 private:
     std::tuple<T...> fixed_action_kernels_;
 };
@@ -94,6 +98,10 @@ public:
     MDPKernel(ActionConditionedKernel<T...>&& action_conditioned_kernel,
               AbstractAgentPolicy<DerivedPolicy>* agent_policy)
         : conditioned_kernel_(std::move(action_conditioned_kernel)), agent_policy_(agent_policy) {
+    }
+
+    void ResetPolicy(AbstractAgentPolicy<DerivedPolicy>* agent_policy) {
+	agent_policy_ = agent_policy;
     }
 
     template <class S1, class S2>

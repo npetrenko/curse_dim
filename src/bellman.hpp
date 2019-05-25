@@ -13,6 +13,11 @@ public:
         return this->GetDerived()->ValueAtPoint(point, action_num);
     }
 
+    template <class StorageT>
+    FloatT& ValueAtPoint(const Particle<StorageT>& point, size_t action_num) {
+        return this->GetDerived()->ValueAtPoint(point, action_num);
+    }
+
     size_t NumActions() const {
         return this->GetDerived()->NumActions();
     }
@@ -43,8 +48,4 @@ public:
 
 private:
     const AbstractQFuncEstimate<T>& qfunc_estimate_;
-};
-
-class AbstractBellmanOperator {
-    
 };

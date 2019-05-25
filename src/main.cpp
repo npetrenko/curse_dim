@@ -2,6 +2,7 @@
 #include <src/particle.hpp>
 #include <src/kernel.hpp>
 #include <src/particle_storage.hpp>
+#include <src/bellman.hpp>
 
 template <int step>
 class DetermKernel : public AbstractKernel<DetermKernel<step>> {
