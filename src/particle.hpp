@@ -1,12 +1,11 @@
 #pragma once
 
 #include <vector>
+
 #include <src/types.hpp>
-#include <iostream>
 #include <src/util.hpp>
 #include <src/initializer.hpp>
 #include <src/particle_storage.hpp>
-#include <src/bellman.hpp>
 
 template <class StorageT = ParticleStorage>
 class Particle {
@@ -29,12 +28,17 @@ public:
         return data_[i];
     }
 
-    void SetStorageLocalIndex(size_t ix) {
-	storage_local_index_ = ix;
-    }
-
-    size_t GetStorageLocalIndex(size_t ix) {
-	storage_local_index_ = ix;
+    template <class T>
+    bool operator==(const Particle<T>& other) const {
+	if (GetDim() != other.GetDim()) {
+	    return false;
+	}
+	for (size_t i = 0; i < GetDim(); ++i) {
+	    if ((*this)[i] != other[i]) {
+		return false;
+	    }
+	}
+	return true;
     }
 
     template <class S>
@@ -42,7 +46,6 @@ public:
 
 private:
     StorageT data_;
-    size_t storage_local_index_;
 };
 
 template <class StorageT>

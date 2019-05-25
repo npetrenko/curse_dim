@@ -93,23 +93,36 @@ protected:
 };
 
 template <class StorageT>
-class ZeroInitializer final : public VectorizingInitializer<ZeroInitializer<StorageT>, StorageT> {
+class ConstantInitializer : public VectorizingInitializer<ConstantInitializer<StorageT>, StorageT> {
 public:
-    ZeroInitializer(size_t dim) : BaseT{dim} {
+    ConstantInitializer(FloatT ct, size_t dim) : BaseT{dim}, ct_{ct} {
     }
 
-    ZeroInitializer(size_t dim, ParticleStorage* storage) : BaseT{dim, storage} {
+    ConstantInitializer(FloatT ct, size_t dim, ParticleStorage* storage)
+        : BaseT{dim, storage}, ct_{ct} {
     }
 
-    friend class VectorizingInitializer<ZeroInitializer<StorageT>, StorageT>;
+    friend class VectorizingInitializer<ConstantInitializer<StorageT>, StorageT>;
 
 protected:
-    using BaseT = VectorizingInitializer<ZeroInitializer<StorageT>, StorageT>;
+    using BaseT = VectorizingInitializer<ConstantInitializer<StorageT>, StorageT>;
     inline FloatT GetIthElemImpl(size_t) const {
-        return 0;
+        return ct_;
     }
+    FloatT ct_;
 };
 
+ConstantInitializer(FloatT, size_t)->ConstantInitializer<ParticleStorage>;
+ConstantInitializer(FloatT, size_t, ParticleStorage*)->ConstantInitializer<MemoryView>;
+
+template <class StorageT>
+class ZeroInitializer : public ConstantInitializer<StorageT> {
+public:
+    ZeroInitializer(size_t dim) : ConstantInitializer<StorageT>{0., dim} {
+    }
+    ZeroInitializer(size_t dim, ParticleStorage* storage) : ConstantInitializer<StorageT>{0., dim, storage} {
+    }
+};
 ZeroInitializer(size_t)->ZeroInitializer<ParticleStorage>;
 ZeroInitializer(size_t, ParticleStorage*)->ZeroInitializer<MemoryView>;
 

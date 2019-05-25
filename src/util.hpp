@@ -4,7 +4,11 @@
 #include <type_traits>
 #include <tuple>
 
-template <class Cont, class = decltype(std::declval<Cont>().begin())>
+class ParticleStorage;
+class MemoryView;
+
+template <class Cont, class = std::enable_if_t<std::is_same_v<Cont, ParticleStorage> ||
+                                               std::is_same_v<Cont, MemoryView>>>
 inline std::ostream& operator<<(std::ostream& stream, const Cont& container) {
     stream << "{";
     for (const auto& elem : container) {

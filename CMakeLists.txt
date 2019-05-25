@@ -8,6 +8,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic ")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -mtune=native")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -march=native -mtune=native -fno-omit-frame-pointer")
 
+find_package(GTest REQUIRED)
+enable_testing()
+
 execute_process(COMMAND jemalloc-config --libs
   OUTPUT_VARIABLE JEMALLOC_LIBS
   OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -18,7 +21,15 @@ string(REPLACE " " ";" JEMALLOC_LIBS ${JEMALLOC_LIBS})
 message(STATUS "jemalloc-libs: ${JEMALLOC_LIBS}, jemalloc-libdir: ${JEMALLOC_LIBDIR}")
 
 set(SRC_DIR "src")
+set(TEST_DIR "tests")
+
 add_executable(main "${SRC_DIR}/main.cpp")
 target_include_directories(main PUBLIC .)
 # target_link_libraries(main pthread)
 target_link_options(main PUBLIC -L${JEMALLOC_LIBDIR} -Wl,-rpath,${JEMALLOC_LIBDIR} -ljemalloc "${JEMALLOC_LIBS}")
+
+add_executable(tests "${TEST_DIR}/tests.cpp")
+target_include_directories(tests PUBLIC .)
+target_link_libraries(tests gtest_main gtest)
+
+add_test(tests tests)

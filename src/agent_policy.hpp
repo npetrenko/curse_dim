@@ -1,7 +1,6 @@
 #pragma once
 
 #include <src/particle.hpp>
-#include <src/util.hpp>
 
 template<class DerivedT>
 class AbstractAgentPolicy : public CRTPDerivedCaster<DerivedT> {
@@ -10,4 +9,10 @@ public:
     size_t React(const Particle<S>& state) {
 	return this->GetDerived()->React(state);
     }
+
+    size_t React(size_t state_index) {
+	return this->GetDerived()->React(state_index);
+    }
 };
+
+#include <src/util.hpp>
