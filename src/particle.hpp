@@ -6,6 +6,7 @@
 #include <src/util.hpp>
 #include <src/initializer.hpp>
 #include <src/particle_storage.hpp>
+#include <src/bellman.hpp>
 
 template <class StorageT = ParticleStorage>
 class Particle {
@@ -28,11 +29,20 @@ public:
         return data_[i];
     }
 
+    void SetStorageLocalIndex(size_t ix) {
+	storage_local_index_ = ix;
+    }
+
+    size_t GetStorageLocalIndex(size_t ix) {
+	storage_local_index_ = ix;
+    }
+
     template <class S>
     friend std::ostream& operator<<(std::ostream& stream, const Particle<S>& part);
 
 private:
     StorageT data_;
+    size_t storage_local_index_;
 };
 
 template <class StorageT>
@@ -54,11 +64,11 @@ public:
     }
 
     using ParticleT = Particle<MemoryView>;
-    ParticleT& operator[](size_t i) {
+    inline ParticleT& operator[](size_t i) {
         return static_cast<ParentT&>(*this)[i];
     }
 
-    const ParticleT& operator[](size_t i) const {
+    inline const ParticleT& operator[](size_t i) const {
         return static_cast<const ParentT&>(*this)[i];
     }
 
@@ -66,20 +76,24 @@ public:
     using iterator = ParentT::iterator;
     using const_iterator = ParentT::const_iterator;
 
-    iterator begin() {
+    inline iterator begin() {
         return ParentT::begin();
     }
 
-    iterator end() {
+    inline iterator end() {
         return ParentT::end();
     }
 
-    const_iterator cbegin() const {
+    inline const_iterator cbegin() const {
         return ParentT::cbegin();
     }
 
-    const_iterator end() const {
+    inline const_iterator end() const {
         return ParentT::cend();
+    }
+
+    inline size_t size() const {
+	return ParentT::size();
     }
 
 private:

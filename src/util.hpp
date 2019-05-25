@@ -15,7 +15,7 @@ inline std::ostream& operator<<(std::ostream& stream, const Cont& container) {
 }
 
 template <class Func, size_t lower_bound = 0, class... T>
-inline static void CallOnTupleIx(Func&& cb, std::tuple<T...>& tup, size_t index) {
+inline static void CallOnTupleIx(Func&& cb, const std::tuple<T...>& tup, size_t index) {
     if constexpr (sizeof...(T) == lower_bound) {
         throw std::runtime_error("out of range");
     } else {
@@ -28,7 +28,8 @@ inline static void CallOnTupleIx(Func&& cb, std::tuple<T...>& tup, size_t index)
 }
 
 template <class DerivedT>
-struct CRTPDerivedCaster {
+class CRTPDerivedCaster {
+protected:
     using DerivedClass = DerivedT;
     DerivedT* GetDerived() {
         return static_cast<DerivedT*>(this);

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <src/particle.hpp>
 #include <src/util.hpp>
 

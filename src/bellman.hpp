@@ -6,7 +6,7 @@
 #include <src/particle.hpp>
 
 template <class DerivedT>
-class AbstractQFuncEstimate : public CRTPDerivedCaster<DerivedT> {
+class AbstractQFuncEstimate : private CRTPDerivedCaster<DerivedT> {
 public:
     template <class StorageT>
     FloatT ValueAtPoint(const Particle<StorageT>& point, size_t action_num) const {
