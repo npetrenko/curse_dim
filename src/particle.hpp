@@ -4,13 +4,15 @@
 #include <src/types.hpp>
 #include <iostream>
 #include <src/util.hpp>
+#include <src/initializer.hpp>
 #include <src/particle_storage.hpp>
 
 template <class StorageT = ParticleStorage>
 class Particle {
 public:
     template <class T>
-    Particle(const AbstractInitializer<T, StorageT>& initializer) : data_{initializer.CreateStorage()} {
+    Particle(const AbstractInitializer<T, StorageT>& initializer)
+        : data_{initializer.CreateStorage()} {
         initializer.Initialize(&data_);
     }
 
@@ -26,7 +28,7 @@ public:
         return data_[i];
     }
 
-    template<class S>
+    template <class S>
     friend std::ostream& operator<<(std::ostream& stream, const Particle<S>& part);
 
 private:
@@ -38,3 +40,48 @@ std::ostream& operator<<(std::ostream& stream, const Particle<StorageT>& part) {
     stream << "Particle" << part.data_;
     return stream;
 }
+
+class ParticleCluster : private std::vector<Particle<MemoryView>> {
+public:
+    template <class DerivedT>
+    ParticleCluster(size_t size, AbstractInitializer<DerivedT, MemoryView> initializer)
+        : storage_(size * initializer.GetDim()) {
+        initializer.SetStorage(&storage_);
+        this->reserve(size);
+        for (size_t i = 0; i < size; ++i) {
+            this->emplace_back({initializer});
+        }
+    }
+
+    using ParticleT = Particle<MemoryView>;
+    ParticleT& operator[](size_t i) {
+        return static_cast<ParentT&>(*this)[i];
+    }
+
+    const ParticleT& operator[](size_t i) const {
+        return static_cast<const ParentT&>(*this)[i];
+    }
+
+    using ParentT = std::vector<Particle<MemoryView>>;
+    using iterator = ParentT::iterator;
+    using const_iterator = ParentT::const_iterator;
+
+    iterator begin() {
+        return ParentT::begin();
+    }
+
+    iterator end() {
+        return ParentT::end();
+    }
+
+    const_iterator cbegin() const {
+        return ParentT::cbegin();
+    }
+
+    const_iterator end() const {
+        return ParentT::cend();
+    }
+
+private:
+    ParticleStorage storage_;
+};

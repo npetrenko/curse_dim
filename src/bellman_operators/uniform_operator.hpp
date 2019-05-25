@@ -2,12 +2,16 @@
 
 #include <src/bellman.hpp>
 #include <src/kernel.hpp>
+#include <src/particle.hpp>
+
+#include <random>
 
 template <size_t dim>
-class UniformQFuncEst: public AbstractQFuncEstimate<UniformQFuncEst<dim>> {
+class UniformQFuncEst : public AbstractQFuncEstimate<UniformQFuncEst<dim>> {
 public:
     UniformQFuncEst() {
     }
+
 private:
     std::vector<std::array<FloatT, dim>> values;
 };
@@ -20,17 +24,17 @@ public:
         : ac_kernel_{std::move(ac_kernel)},
           diameter_{diameter},
           random_device_{random_device},
-          storage_{num_particles * ac_kernel.GetDim()} {
-        particles_.reserve(num_particles);
-        for (size_t i = 0; i < num_particles; ++i) {
-            particles_.emplace_back({ZeroInitializer(ac_kernel.GetDim(), &storage_)});
-        }
+          cluster_{num_particles, EmptyInitializer<MemoryView>{ac_kernel_.GetDim()}} {
+	      std::uniform_real_distribution<FloatT> distr{-diameter, diameter};
+	      RandomVectorizingInitializer<MemoryView, decltype(distr), RandomDeviceT> initializer{ac_kernel_.GetDim(), random_device, distr};
+	      for (auto& particle : cluster_) {
+		  initializer.Initialize(particle);
+	      }
     }
 
 private:
     ActionConditionedKernel<T...> ac_kernel_;
     FloatT diameter_;
     RandomDeviceT* random_device_;
-    ParticleStorage storage_;
-    std::vector<Particle<MemoryView>> particles_;
+    ParticleCluster cluster_;
 };

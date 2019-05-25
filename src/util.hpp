@@ -29,6 +29,7 @@ inline static void CallOnTupleIx(Func&& cb, std::tuple<T...>& tup, size_t index)
 
 template <class DerivedT>
 struct CRTPDerivedCaster {
+    using DerivedClass = DerivedT;
     DerivedT* GetDerived() {
         return static_cast<DerivedT*>(this);
     }
