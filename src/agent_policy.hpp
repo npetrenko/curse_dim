@@ -1,7 +1,11 @@
 #include <src/particle.hpp>
+#include <src/util.hpp>
 
-class AbstractAgentPolicy {
+template<class DerivedT>
+class AbstractAgentPolicy : public CRTPDerivedCaster<DerivedT> {
 public:
-    virtual size_t React(const Particle& state) = 0;
-    virtual ~AbstractAgentPolicy() = default;
+    template <class S>
+    size_t React(const Particle<S>& state) {
+	return this->GetDerived()->React(state);
+    }
 };

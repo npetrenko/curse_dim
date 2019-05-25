@@ -1,9 +1,11 @@
+#pragma once
+
 #include <iostream>
 #include <type_traits>
 #include <tuple>
 
 template <class Cont, class = decltype(std::declval<Cont>().begin())>
-std::ostream& operator<<(std::ostream& stream, const Cont& container) {
+inline std::ostream& operator<<(std::ostream& stream, const Cont& container) {
     stream << "{";
     for (const auto& elem : container) {
         stream << elem << ",";
@@ -24,3 +26,14 @@ inline static void CallOnTupleIx(Func&& cb, std::tuple<T...>& tup, size_t index)
         }
     }
 }
+
+template <class DerivedT>
+struct CRTPDerivedCaster {
+    DerivedT* GetDerived() {
+        return static_cast<DerivedT*>(this);
+    }
+
+    const DerivedT* GetDerived() const {
+        return static_cast<const DerivedT*>(this);
+    }
+};

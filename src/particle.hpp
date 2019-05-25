@@ -4,11 +4,13 @@
 #include <src/types.hpp>
 #include <iostream>
 #include <src/util.hpp>
+#include <src/particle_storage.hpp>
 
+template <class StorageT = ParticleStorage>
 class Particle {
 public:
-    template <class InitT>
-    Particle(const InitT& initializer) {
+    template <class T>
+    Particle(const AbstractInitializer<T, StorageT>& initializer) : data_{initializer.CreateStorage()} {
         initializer.Initialize(&data_);
     }
 
@@ -24,13 +26,15 @@ public:
         return data_[i];
     }
 
-    friend std::ostream& operator<<(std::ostream& stream, const Particle& part);
+    template<class S>
+    friend std::ostream& operator<<(std::ostream& stream, const Particle<S>& part);
 
 private:
-    std::vector<FloatT> data_;
+    StorageT data_;
 };
 
-std::ostream& operator<<(std::ostream& stream, const Particle& part) {
+template <class StorageT>
+std::ostream& operator<<(std::ostream& stream, const Particle<StorageT>& part) {
     stream << "Particle" << part.data_;
     return stream;
 }
