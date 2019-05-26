@@ -98,6 +98,14 @@ public:
     template <class S>
     friend std::ostream& operator<<(std::ostream& stream, const Particle<S>& part);
 
+    using iterator = typename StorageT::iterator;
+    iterator begin() {
+	return data_.begin();
+    }
+
+    iterator end() {
+	return data_.end();
+    }
 private:
     StorageT data_;
 };

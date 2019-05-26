@@ -3,6 +3,8 @@
 #include <src/kernel.hpp>
 #include <src/particle_storage.hpp>
 #include <src/bellman.hpp>
+#include <src/bellman_operators/uniform_operator.hpp>
+#include <src/bellman_operators/qfunc.hpp>
 
 #include <gtest/gtest.h>
 #include <random>
@@ -91,4 +93,79 @@ TEST(Probability, SummsToOne) {
     }
 
     ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+}
+
+namespace SimpleModel {
+static const FloatT kActionDelta = 0.3;
+
+template <int direction>
+class Kernel : public AbstractKernel<Kernel<direction>> {
+public:
+    Kernel(std::mt19937* random_device) noexcept : rd_(random_device) {
+    }
+
+    template <class S1, class S2>
+    void Evolve(const Particle<S1>& from, Particle<S2>* to) const {
+        auto [travel_dist_down, travel_dist_up] = MaxAllowedTravelDists(from);
+        std::uniform_real_distribution<FloatT> delta{travel_dist_down, travel_dist_up};
+
+        (*to)[0] = from[0] + delta(*rd_);
+    }
+
+    template <class S1, class S2>
+    FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
+        auto [travel_dist_down, travel_dist_up] = MaxAllowedTravelDists(from);
+        FloatT dist = to[0] - from[0];
+        if (dist > travel_dist_up || dist < travel_dist_down) {
+            return 0;
+        } else {
+            return 1 / (travel_dist_up - travel_dist_down);
+        }
+    }
+
+    inline size_t GetSpaceDim() const {
+	return 1;
+    }
+
+private:
+    template <class S1>
+    std::pair<FloatT, FloatT> MaxAllowedTravelDists(const Particle<S1>& from) const {
+        FloatT dist_bound = 0.05;
+        FloatT travel_dist_up = std::min(1 - from[0] - kActionDelta * direction, dist_bound);
+        FloatT travel_dist_down = std::min(-(-1 - from[0] + kActionDelta * direction), dist_bound);
+        return {-travel_dist_down, travel_dist_up};
+    }
+    std::mt19937* rd_;
+};
+
+struct RewardFunc {
+    template <class S>
+    FloatT operator()(const Particle<S>& state, size_t/*action*/) const {
+        return state[0];
+    }
+};
+}  // namespace SimpleModel
+
+TEST(UniformBellman, SimpleModel) {
+    std::mt19937 rd{1234};
+    ActionConditionedKernel action_conditioned_kernel{
+        SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
+
+    UniformBellmanOperator bellman_op{action_conditioned_kernel, SimpleModel::RewardFunc{}, 1024,
+                                      1., &rd};
+    for (int i = 0; i < 1; ++i) {
+        bellman_op.MakeIteration();
+    }
+
+    std::cout << bellman_op.GetQFunc() << "\n";
+    QFuncEstForGreedy qfunc_est(action_conditioned_kernel, std::move(bellman_op.GetQFunc()),
+                                [](auto) { return 1.; });
+    GreedyPolicy policy{qfunc_est};
+    MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
+
+    Particle state{ZeroInitializer(1)};
+    for (int i = 0; i < 100;  ++i) {
+        std::cout << state << "\n";
+	mdp_kernel.Evolve(state, &state);
+    }
 }

@@ -24,6 +24,10 @@ public:
         assert(from.GetDim() == to.GetDim());
         return this->GetDerived()->GetTransDensity(from, to);
     }
+
+    size_t GetSpaceDim() const {
+        return this->GetDerived()->GetSpaceDim();
+    }
 };
 
 template <class DerivedT>
@@ -39,6 +43,10 @@ public:
     FloatT GetTransDensityConditionally(const Particle<S1>& from, const Particle<S2>& to,
                                         size_t condition) const {
         return this->GetDerived()->GetTransDensityConditionally(from, to, condition);
+    }
+
+    size_t GetSpaceDim() const {
+        return this->GetDerived()->GetSpaceDim();
     }
 };
 
@@ -68,6 +76,19 @@ public:
         return result;
     }
 
+    inline size_t GetSpaceDim() const {
+        size_t result = std::get<0>(fixed_action_kernels_).GetSpaceDim();
+// Need to add checks
+#ifndef NDEBUG
+#endif
+        return result;
+    }
+
+    static inline size_t GetDim() {
+        return sizeof...(T);
+    }
+
+private:
     template <class S1, class S2>
     struct EvolveHelper {
         const Particle<S1>& from;
@@ -91,18 +112,13 @@ public:
         }
     };
 
-    static inline size_t GetDim() {
-        return sizeof...(T);
-    }
-
-private:
     std::tuple<T...> fixed_action_kernels_;
 };
 
 template <class DerivedPolicy, class... T>
 class MDPKernel final : public AbstractKernel<MDPKernel<T...>> {
 public:
-    MDPKernel(ActionConditionedKernel<T...>&& action_conditioned_kernel,
+    MDPKernel(ActionConditionedKernel<T...> action_conditioned_kernel,
               AbstractAgentPolicy<DerivedPolicy>* agent_policy)
         : conditioned_kernel_(std::move(action_conditioned_kernel)), agent_policy_(agent_policy) {
     }
@@ -121,6 +137,10 @@ public:
     FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
         size_t action_num = agent_policy_->React(from);
         return conditioned_kernel_.GetTransDensityConditionally(from, to, action_num);
+    }
+
+    inline size_t GetSpaceDim() const {
+        return conditioned_kernel_.GetSpaceDim();
     }
 
 private:

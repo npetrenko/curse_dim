@@ -76,8 +76,10 @@ public:
 
     template <class Container>
     inline void Initialize(Container* data) const {
-	for (size_t i = 0; i < data->size(); ++i) {
-	    (*data)[i] = other_[i];
+	size_t i = 0;
+	for (auto& elem: *data) {
+	    elem = other_[i];
+	    ++i;
 	}
     }
 
@@ -99,8 +101,10 @@ public:
 
     template <class Container>
     inline void Initialize(Container* data) const {
-        for (size_t i = 0; i < data->size(); ++i) {
-            (*data)[i] = GetIthElem(i);
+	size_t i = 0;
+        for (auto& elem: *data) {
+            elem = GetIthElem(i);
+	    ++i;
         }
     }
 

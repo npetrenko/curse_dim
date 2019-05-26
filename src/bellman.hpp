@@ -6,15 +6,10 @@
 #include <src/particle.hpp>
 
 template <class DerivedT>
-class AbstractQFuncEstimate : private CRTPDerivedCaster<DerivedT> {
+class AbstractQFuncEstimate : public CRTPDerivedCaster<DerivedT> {
 public:
     template <class StorageT>
     FloatT ValueAtPoint(const Particle<StorageT>& point, size_t action_num) const {
-        return this->GetDerived()->ValueAtPoint(point, action_num);
-    }
-
-    template <class StorageT>
-    FloatT& ValueAtPoint(const Particle<StorageT>& point, size_t action_num) {
         return this->GetDerived()->ValueAtPoint(point, action_num);
     }
 
@@ -58,9 +53,10 @@ public:
 private:
     template <class Func>
     size_t ReactHelper(Func frozen_state_callback) const {
-        FloatT best_val{std::numeric_limits<FloatT>::min()};
-        size_t best_action;
-        for (size_t i = 0; i < qfunc_estimate_.NumActions(); ++i) {
+	assert(qfunc_estimate_.NumActions());
+        FloatT best_val = frozen_state_callback(0);
+        size_t best_action = 0;
+        for (size_t i = 1; i < qfunc_estimate_.NumActions(); ++i) {
             FloatT est = frozen_state_callback(i);
             if (best_val < est) {
                 best_val = est;

@@ -74,6 +74,7 @@ private:
 
 class ParticleStorage : private std::vector<FloatT> {
 public:
+    using iterator = std::vector<FloatT>::iterator;
     ParticleStorage(size_t max_size) {
         std::vector<FloatT>::resize(max_size);
         current_pos_ = 0;
