@@ -50,13 +50,14 @@ protected:
     std::optional<ParticleCluster> particle_cluster_;
 };
 std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
-    for (size_t i = 0; i < est.values_.size(); ++i) {
+    for (size_t i = 0; i < est.values_.size() / est.NumActions(); ++i) {
         stream << "{";
         for (size_t action_number = 0; action_number < est.NumActions(); ++action_number) {
             stream << est.ValueAtIndex(i, action_number) << ", ";
         }
         stream << "} ";
         if (est.particle_cluster_) {
+	    assert(i < est.particle_cluster_.value().size());
             stream << est.particle_cluster_.value()[i];
         } else {
             stream << "{}";
@@ -66,26 +67,25 @@ std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
     return stream;
 }
 
-template <class T, class ImportanceFuncT>
-class QFuncEstForGreedy : public AbstractQFuncEstimate<QFuncEstForGreedy<T, ImportanceFuncT>> {
+template <class T, class RewardFuncT, class ImportanceFuncT>
+class QFuncEstForGreedy : public AbstractQFuncEstimate<QFuncEstForGreedy<T, RewardFuncT, ImportanceFuncT>> {
 public:
-    QFuncEstForGreedy(const AbstractConditionedKernel<T>& conditioned_kernel,
-                      DiscreteQFuncEst dqf,
-                      ImportanceFuncT importance_func)
+    QFuncEstForGreedy(const AbstractConditionedKernel<T>& conditioned_kernel, DiscreteQFuncEst dqf,
+                      RewardFuncT reward_func, ImportanceFuncT importance_func)
         : discrete_est_{std::move(dqf)},
           conditioned_kernel_{conditioned_kernel},
-          importance_func_{std::move(importance_func)} {
+          reward_func_{std::move(reward_func)}, importance_func_{std::move(importance_func)} {
     }
 
     template <class S>
     FloatT ValueAtPoint(const Particle<S>& state, size_t action) const {
         const ParticleCluster& cluster = discrete_est_.GetParticleCluster();
         GreedyPolicy greedy_policy(*this);
-        FloatT result = 0;
+        FloatT result = reward_func_(state, action);
         for (size_t i = 0; i < cluster.size(); ++i) {
             const Particle<MemoryView>& next_state = cluster[i];
             size_t next_state_reaction = greedy_policy.React(i);
-            result += conditioned_kernel_.GetTransDensityConditionally(state, next_state, action) *
+            result += 0.95 * conditioned_kernel_.GetTransDensityConditionally(state, next_state, action) *
                       this->ValueAtIndex(i, next_state_reaction) * importance_func_(next_state);
         }
 
@@ -104,16 +104,17 @@ public:
 	return discrete_est_.NumActions();
     }
 
-    template <class S, class IF>
-    friend std::ostream& operator<<(std::ostream&, const QFuncEstForGreedy<S,IF>&);
+    template <class S, class RF, class IF>
+    friend std::ostream& operator<<(std::ostream&, const QFuncEstForGreedy<S,RF, IF>&);
 
 private:
     DiscreteQFuncEst discrete_est_;
     const AbstractConditionedKernel<T>& conditioned_kernel_;
+    RewardFuncT reward_func_;
     ImportanceFuncT importance_func_;
 };
 
-template <class T, class IF>
-std::ostream& operator<<(std::ostream& stream, const QFuncEstForGreedy<T, IF>& est) {
+template <class T, class RF, class IF>
+std::ostream& operator<<(std::ostream& stream, const QFuncEstForGreedy<T, RF, IF>& est) {
     return (stream << est.discrete_est_);
 }

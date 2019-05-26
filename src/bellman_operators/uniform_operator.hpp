@@ -9,8 +9,9 @@
 #include <cassert>
 #include <optional>
 
+#ifndef NDEBUG
 #include <fenv.h>
-feenableexcept(FE_INVALID | FE_OVERFLOW);
+#endif
 
 template <class RandomDeviceT, class RewardFuncT, class... T>
 class UniformBellmanOperator {
@@ -23,7 +24,6 @@ public:
           qfunc_primary_{num_particles, ac_kernel_.GetDim()},
           qfunc_secondary_{num_particles, ac_kernel_.GetDim()},
           reward_func_{std::move(reward_func)} {
-
 
         additional_weights_.resize(num_particles);
         for (auto& elem : additional_weights_) {
@@ -42,10 +42,13 @@ public:
     }
 
     void MakeIteration() {
-	auto& cluster = qfunc_primary_.GetParticleCluster();
-	assert(additional_weights_.size() == cluster.size());
-	assert(additional_weights_[0].size() == ac_kernel_.GetDim());
-	
+#ifndef NDEBUG
+        feenableexcept(FE_INVALID | FE_OVERFLOW);
+#endif
+        auto& cluster = qfunc_primary_.GetParticleCluster();
+        assert(additional_weights_.size() == cluster.size());
+        assert(additional_weights_[0].size() == ac_kernel_.GetDim());
+
         GreedyPolicy policy{qfunc_primary_};
 
         for (size_t i = 0; i < cluster.size(); ++i) {
@@ -57,8 +60,8 @@ public:
                 for (size_t action_number = 0; action_number < ac_kernel_.GetDim();
                      ++action_number) {
                     size_t reaction = policy.React(j);
-                    FloatT density = ac_kernel_.GetTransDensityConditionally(
-                        cluster[i], cluster[j], action_number);
+                    FloatT density = ac_kernel_.GetTransDensityConditionally(cluster[i], cluster[j],
+                                                                             action_number);
                     qfunc_secondary_.ValueAtIndex(i, action_number) +=
                         gamma_ * density * qfunc_primary_.ValueAtIndex(j, reaction) *
                         additional_weights_[i][action_number];
@@ -67,7 +70,7 @@ public:
         }
 
         std::swap(qfunc_primary_, qfunc_secondary_);
-	qfunc_primary_.SetParticleCluster(std::move(qfunc_secondary_.GetParticleCluster()));
+        qfunc_primary_.SetParticleCluster(std::move(qfunc_secondary_.GetParticleCluster()));
     }
 
     DiscreteQFuncEst& GetQFunc() {
@@ -80,13 +83,13 @@ public:
 
 private:
     void NormalizeWeights() {
-	auto& cluster = qfunc_primary_.GetParticleCluster();
+        auto& cluster = qfunc_primary_.GetParticleCluster();
         for (size_t action_number = 0; action_number < ac_kernel_.GetDim(); ++action_number) {
             for (size_t i = 0; i < cluster.size(); ++i) {
                 FloatT sum = 0;
                 for (size_t j = 0; j < cluster.size(); ++j) {
-                    sum += ac_kernel_.GetTransDensityConditionally(/*from*/ cluster[i],
-                                                                   cluster[j], action_number);
+                    sum += ac_kernel_.GetTransDensityConditionally(/*from*/ cluster[i], cluster[j],
+                                                                   action_number);
                 }
                 additional_weights_[i][action_number] /= sum;
             }
@@ -99,5 +102,5 @@ private:
     std::vector<std::array<FloatT, sizeof...(T)>> additional_weights_;
     DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
     RewardFuncT reward_func_;
-    FloatT gamma_ = 0.99;
+    FloatT gamma_ = 0.95;
 };

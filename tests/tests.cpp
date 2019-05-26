@@ -54,21 +54,21 @@ public:
     inline void Evolve(const Particle<S1>& from, Particle<S2>* to) {
         std::normal_distribution<FloatT> normal{0., 1.};
 
-	for (size_t i = 0; i < from.GetDim(); ++i) {
-	    (*to)[i] = 0.5*from[i] + normal(*rd_);
-	}
+        for (size_t i = 0; i < from.GetDim(); ++i) {
+            (*to)[i] = 0.5 * from[i] + normal(*rd_);
+        }
     }
 
     template <class S1, class S2>
     inline FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) {
         Particle<MemoryView> res{ValueInitializer{from, &tmp_storage_}};
         // Particle<ParticleStorage> res{from};
-	res *= -0.5;
+        res *= -0.5;
         res += to;
-	FloatT norm = res.NormSquared();
-	FloatT result = exp(-norm/2)/pow(2*double(M_PI), from.GetDim()/2);
-	tmp_storage_.Clear();
-	return result;
+        FloatT norm = res.NormSquared();
+        FloatT result = exp(-norm / 2) / pow(2 * double(M_PI), from.GetDim() / 2);
+        tmp_storage_.Clear();
+        return result;
     }
 
 private:
@@ -78,7 +78,7 @@ private:
 
 TEST(Probability, SummsToOne) {
     static const size_t kDim = 2;
-    std::mt19937 random_device{std::random_device{}()};
+    std::mt19937 random_device{1234};
 
     ARKernel kernel{&random_device};
     using InitT = RandomVectorizingInitializer<MemoryView, std::uniform_real_distribution<FloatT>,
@@ -89,14 +89,14 @@ TEST(Probability, SummsToOne) {
 
     FloatT prob = 0;
     for (const auto& elem : cluster) {
-        prob += kernel.GetTransDensity(origin, elem) * (pow(12, kDim)/ cluster.size());
+        prob += kernel.GetTransDensity(origin, elem) * (pow(12, kDim) / cluster.size());
     }
 
     ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
 }
 
 namespace SimpleModel {
-static const FloatT kActionDelta = 0.3;
+static const FloatT kActionDelta = 0.2;
 
 template <int direction>
 class Kernel : public AbstractKernel<Kernel<direction>> {
@@ -119,28 +119,42 @@ public:
         if (dist > travel_dist_up || dist < travel_dist_down) {
             return 0;
         } else {
-            return 1 / (travel_dist_up - travel_dist_down);
+            return 1. / (travel_dist_up - travel_dist_down);
         }
     }
 
     inline size_t GetSpaceDim() const {
-	return 1;
+        return 1;
     }
 
 private:
     template <class S1>
     std::pair<FloatT, FloatT> MaxAllowedTravelDists(const Particle<S1>& from) const {
-        FloatT dist_bound = 0.05;
-        FloatT travel_dist_up = std::min(1 - from[0] - kActionDelta * direction, dist_bound);
-        FloatT travel_dist_down = std::min(-(-1 - from[0] + kActionDelta * direction), dist_bound);
-        return {-travel_dist_down, travel_dist_up};
+        auto truncate = [](FloatT val) { return std::max(-1., std::min(val, 1.)); };
+
+        FloatT disp = 0.07;
+        FloatT travel_up = truncate(from[0] + kActionDelta * direction + disp);
+        FloatT travel_down = truncate(from[0] + kActionDelta * direction - disp);
+
+        if (travel_up >= 0.99) {
+            travel_down = travel_up - disp;
+        }
+
+        if (travel_down <= -0.99) {
+            travel_up = travel_down + disp;
+        }
+
+        travel_down -= from[0];
+        travel_up -= from[0];
+
+        return {travel_down, travel_up};
     }
     std::mt19937* rd_;
 };
 
 struct RewardFunc {
     template <class S>
-    FloatT operator()(const Particle<S>& state, size_t/*action*/) const {
+    FloatT operator()(const Particle<S>& state, size_t /*action*/) const {
         return state[0];
     }
 };
@@ -151,21 +165,23 @@ TEST(UniformBellman, SimpleModel) {
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
 
-    UniformBellmanOperator bellman_op{action_conditioned_kernel, SimpleModel::RewardFunc{}, 1024,
-                                      1., &rd};
-    for (int i = 0; i < 1; ++i) {
+    UniformBellmanOperator bellman_op{action_conditioned_kernel, SimpleModel::RewardFunc{}, 1024, 1.,
+                                      &rd};
+    for (int i = 0; i < 1000; ++i) {
         bellman_op.MakeIteration();
     }
 
-    std::cout << bellman_op.GetQFunc() << "\n";
     QFuncEstForGreedy qfunc_est(action_conditioned_kernel, std::move(bellman_op.GetQFunc()),
-                                [](auto) { return 1.; });
+                                SimpleModel::RewardFunc{}, [](auto) { return 1.; });
+    //std::cout << qfunc_est << "\n";
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
     Particle state{ZeroInitializer(1)};
-    for (int i = 0; i < 100;  ++i) {
-        std::cout << state << "\n";
-	mdp_kernel.Evolve(state, &state);
+    for (int i = 0; i < 200; ++i) {
+        std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
+                  << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
+                  << "\n";
+        mdp_kernel.Evolve(state, &state);
     }
 }
