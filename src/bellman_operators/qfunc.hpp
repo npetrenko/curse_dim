@@ -2,6 +2,7 @@
 
 #include <src/bellman.hpp>
 #include <src/particle.hpp>
+#include <src/bellman_operators/environment.hpp>
 
 #include <optional>
 
@@ -25,7 +26,7 @@ public:
         }
     }
 
-    template<class ClusterT>
+    template <class ClusterT>
     void SetParticleCluster(ClusterT&& other) {
         particle_cluster_ = std::forward<ClusterT>(other);
     }
@@ -57,7 +58,7 @@ std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
         }
         stream << "} ";
         if (est.particle_cluster_) {
-	    assert(i < est.particle_cluster_.value().size());
+            assert(i < est.particle_cluster_.value().size());
             stream << est.particle_cluster_.value()[i];
         } else {
             stream << "{}";
@@ -67,50 +68,52 @@ std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
     return stream;
 }
 
-template <class T, class RewardFuncT, class ImportanceFuncT>
-class QFuncEstForGreedy : public AbstractQFuncEstimate<QFuncEstForGreedy<T, RewardFuncT, ImportanceFuncT>> {
+template <class RewardFuncT, class ImportanceFuncT, class... T>
+class QFuncEstForGreedy
+    : public AbstractQFuncEstimate<QFuncEstForGreedy<RewardFuncT, ImportanceFuncT, T...>> {
 public:
-    QFuncEstForGreedy(const AbstractConditionedKernel<T>& conditioned_kernel, DiscreteQFuncEst dqf,
-                      RewardFuncT reward_func, ImportanceFuncT importance_func)
-        : discrete_est_{std::move(dqf)},
-          conditioned_kernel_{conditioned_kernel},
-          reward_func_{std::move(reward_func)}, importance_func_{std::move(importance_func)} {
+    QFuncEstForGreedy(EnvParams<RewardFuncT, T...> env_params, DiscreteQFuncEst dqf,
+                      ImportanceFuncT importance_func)
+        : env_params_{std::move(env_params)},
+          discrete_est_{std::move(dqf)},
+          importance_func_{std::move(importance_func)} {
     }
 
     template <class S>
     FloatT ValueAtPoint(const Particle<S>& state, size_t action) const {
         const ParticleCluster& cluster = discrete_est_.GetParticleCluster();
         GreedyPolicy greedy_policy(*this);
-        FloatT result = reward_func_(state, action);
+        FloatT result = env_params_.reward_function(state, action);
         for (size_t i = 0; i < cluster.size(); ++i) {
             const Particle<MemoryView>& next_state = cluster[i];
             size_t next_state_reaction = greedy_policy.React(i);
-            result += 0.95 * conditioned_kernel_.GetTransDensityConditionally(state, next_state, action) *
-                      this->ValueAtIndex(i, next_state_reaction) * importance_func_(next_state);
+            result +=
+                env_params_.kGamma *
+                env_params_.ac_kernel.GetTransDensityConditionally(state, next_state, action) *
+                this->ValueAtIndex(i, next_state_reaction) * importance_func_(next_state);
         }
 
         return result;
     }
 
     FloatT ValueAtIndex(size_t index, size_t action) const {
-	return discrete_est_.ValueAtIndex(index, action);
+        return discrete_est_.ValueAtIndex(index, action);
     }
 
     FloatT& ValueAtIndex(size_t index, size_t action) {
-	return discrete_est_.ValueAtIndex(index, action);
+        return discrete_est_.ValueAtIndex(index, action);
     }
 
     size_t NumActions() const {
-	return discrete_est_.NumActions();
+        return discrete_est_.NumActions();
     }
 
     template <class S, class RF, class IF>
-    friend std::ostream& operator<<(std::ostream&, const QFuncEstForGreedy<S,RF, IF>&);
+    friend std::ostream& operator<<(std::ostream&, const QFuncEstForGreedy<S, RF, IF>&);
 
 private:
+    EnvParams<RewardFuncT, T...> env_params_;
     DiscreteQFuncEst discrete_est_;
-    const AbstractConditionedKernel<T>& conditioned_kernel_;
-    RewardFuncT reward_func_;
     ImportanceFuncT importance_func_;
 };
 

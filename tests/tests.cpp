@@ -5,6 +5,7 @@
 #include <src/bellman.hpp>
 #include <src/bellman_operators/uniform_operator.hpp>
 #include <src/bellman_operators/qfunc.hpp>
+#include <src/bellman_operators/environment.hpp>
 
 #include <gtest/gtest.h>
 #include <random>
@@ -132,7 +133,7 @@ private:
     std::pair<FloatT, FloatT> MaxAllowedTravelDists(const Particle<S1>& from) const {
         auto truncate = [](FloatT val) { return std::max(-1., std::min(val, 1.)); };
 
-        FloatT disp = 0.07;
+        FloatT disp = 0.15;
         FloatT travel_up = truncate(from[0] + kActionDelta * direction + disp);
         FloatT travel_down = truncate(from[0] + kActionDelta * direction - disp);
 
@@ -165,15 +166,16 @@ TEST(UniformBellman, SimpleModel) {
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
 
-    UniformBellmanOperator bellman_op{action_conditioned_kernel, SimpleModel::RewardFunc{}, 1024, 1.,
-                                      &rd};
-    for (int i = 0; i < 1000; ++i) {
+    EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
+
+    UniformBellmanOperator bellman_op{env_params, 2048 * 16, 1., &rd};
+    for (int i = 0; i < 30; ++i) {
         bellman_op.MakeIteration();
     }
 
-    QFuncEstForGreedy qfunc_est(action_conditioned_kernel, std::move(bellman_op.GetQFunc()),
-                                SimpleModel::RewardFunc{}, [](auto) { return 1.; });
-    //std::cout << qfunc_est << "\n";
+    QFuncEstForGreedy qfunc_est(env_params, std::move(bellman_op.GetQFunc()),
+                                [](auto) { return 1.; });
+    // std::cout << qfunc_est << "\n";
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
