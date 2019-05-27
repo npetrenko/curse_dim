@@ -48,7 +48,7 @@ public:
 #endif
         auto& cluster = qfunc_primary_.GetParticleCluster();
         assert(additional_weights_.size() == cluster.size());
-        assert(additional_weights_[0].size() == ac_kernel_.GetDim());
+        assert(additional_weights_[0].size() == env_params_.ac_kernel.GetDim());
 
         GreedyPolicy policy{qfunc_primary_};
 

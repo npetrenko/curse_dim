@@ -76,11 +76,11 @@ public:
 
     template <class Container>
     inline void Initialize(Container* data) const {
-	size_t i = 0;
-	for (auto& elem: *data) {
-	    elem = other_[i];
-	    ++i;
-	}
+        size_t i = 0;
+        for (auto& elem : *data) {
+            elem = other_[i];
+            ++i;
+        }
     }
 
 private:
@@ -101,10 +101,10 @@ public:
 
     template <class Container>
     inline void Initialize(Container* data) const {
-	size_t i = 0;
-        for (auto& elem: *data) {
+        size_t i = 0;
+        for (auto& elem : *data) {
             elem = GetIthElem(i);
-	    ++i;
+            ++i;
         }
     }
 
@@ -141,10 +141,13 @@ ConstantInitializer(FloatT, size_t, ParticleStorage*)->ConstantInitializer<Memor
 template <class StorageT>
 class ZeroInitializer : public ConstantInitializer<StorageT> {
 public:
-    ZeroInitializer(size_t dim) : ConstantInitializer<StorageT>{0., dim} {
+    ZeroInitializer(size_t dim) : BaseT{0., dim} {
     }
-    ZeroInitializer(size_t dim, ParticleStorage* storage) : ConstantInitializer<StorageT>{0., dim, storage} {
+    ZeroInitializer(size_t dim, ParticleStorage* storage) : BaseT{0., dim, storage} {
     }
+
+private:
+    using BaseT = ConstantInitializer<StorageT>;
 };
 ZeroInitializer(size_t)->ZeroInitializer<ParticleStorage>;
 ZeroInitializer(size_t, ParticleStorage*)->ZeroInitializer<MemoryView>;
@@ -177,3 +180,11 @@ private:
     RandomDevT* rd_;
     mutable RandomDistT dist_;
 };
+
+template <class RandomDistT, class RandomDevT>
+RandomVectorizingInitializer(size_t, RandomDevT*, RandomDistT)
+    ->RandomVectorizingInitializer<ParticleStorage, RandomDistT, RandomDevT>;
+
+template <class RandomDistT, class RandomDevT>
+RandomVectorizingInitializer(size_t, ParticleStorage*, RandomDevT*, RandomDistT)
+    ->RandomVectorizingInitializer<MemoryView, RandomDistT, RandomDevT>;

@@ -50,6 +50,7 @@ protected:
     size_t dim_;
     std::optional<ParticleCluster> particle_cluster_;
 };
+
 std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
     for (size_t i = 0; i < est.values_.size() / est.NumActions(); ++i) {
         stream << "{";
@@ -83,6 +84,7 @@ public:
     FloatT ValueAtPoint(const Particle<S>& state, size_t action) const {
         const ParticleCluster& cluster = discrete_est_.GetParticleCluster();
         GreedyPolicy greedy_policy(*this);
+
         FloatT result = env_params_.reward_function(state, action);
         for (size_t i = 0; i < cluster.size(); ++i) {
             const Particle<MemoryView>& next_state = cluster[i];
