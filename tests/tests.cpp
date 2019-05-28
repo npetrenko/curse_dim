@@ -203,8 +203,8 @@ TEST(UniformBellman, SimpleModel) {
         bellman_op.MakeIteration();
     }
 
-    QFuncEstForGreedy qfunc_est(env_params, std::move(bellman_op.GetQFunc()),
-                                [](auto) { return 1.; });
+    QFuncEstForGreedy qfunc_est{env_params, std::move(bellman_op.GetQFunc()),
+	    [](auto) { return 1.; }};
     // std::cout << qfunc_est << "\n";
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
@@ -216,6 +216,8 @@ TEST(UniformBellman, SimpleModel) {
         //<< "\n";
         mdp_kernel.Evolve(state, &state);
     }
+
+    ASSERT_TRUE(state[0]);
 }
 
 TEST(StationaryBellmanOperator, SimpleModel) {
@@ -224,9 +226,28 @@ TEST(StationaryBellmanOperator, SimpleModel) {
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    StationaryBellmanOperatorParams operator_params{2048, 100., 1., -1., 10};
+    StationaryBellmanOperatorParams operator_params{256 /*num_samples*/, 100. /*density threshold*/,
+                                                    1. /*radius*/, -1. /*unused*/,
+                                                    10 /*burnin iterations*/};
     StationaryBellmanOperator bellman_op{env_params, operator_params, &rd};
     for (int i = 0; i < 30; ++i) {
         bellman_op.MakeIteration();
     }
+
+    PrevSampleReweighingHelper rew_helper{bellman_op.GetSamplingDistribution()};
+    QFuncEstForGreedy qfunc_est{env_params, bellman_op.GetQFunc(), rew_helper};
+
+    // std::cout << qfunc_est << "\n";
+    GreedyPolicy policy{qfunc_est};
+    MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
+
+    Particle state{ZeroInitializer(1)};
+    for (int i = 0; i < 200; ++i) {
+        std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
+        << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
+        << "\n";
+        mdp_kernel.Evolve(state, &state);
+    }
+
+    ASSERT_TRUE(state[0]);
 }

@@ -23,7 +23,7 @@ struct StationaryBellmanOperatorParams {
 };
 
 struct PrevSampleReweighingHelper {
-    WeightedParticleCluster* prev_sample;
+    const WeightedParticleCluster* prev_sample;
     FloatT operator()(size_t sample_index) const {
         if (!prev_sample) {
             return 1.;
@@ -54,10 +54,10 @@ public:
         density_estimator_ = std::make_unique<StationaryDensityEstimator<EstimatorKernelT>>(
             nullptr, initializer, operator_params_.num_particles);
 
-        UpdateParticleCluster(operator_params_.num_burnin_iterations);
-
         qfunc_primary_.SetParticleCluster(density_estimator_->GetCluster());
 	qfunc_secondary_.SetParticleCluster(density_estimator_->GetCluster());
+
+        UpdateParticleCluster(operator_params_.num_burnin_iterations);
     }
 
     void MakeIteration() {
@@ -67,9 +67,6 @@ public:
         UpdateParticleCluster(4);
 
         auto& cluster = qfunc_primary_.GetParticleCluster();
-        assert(additional_weights_.size() == cluster.size());
-        assert(additional_weights_[0].size() == env_params_.ac_kernel.GetDim());
-
         GreedyPolicy policy{qfunc_primary_};
 
         auto& ac_kernel = env_params_.ac_kernel;
@@ -99,7 +96,6 @@ public:
         }
 
         std::swap(qfunc_primary_, qfunc_secondary_);
-        qfunc_primary_.SetParticleCluster(std::move(qfunc_secondary_.GetParticleCluster()));
     }
 
     DiscreteQFuncEst& GetQFunc() {
@@ -110,8 +106,15 @@ public:
         return qfunc_primary_;
     }
 
+    const WeightedParticleCluster* GetSamplingDistribution() {
+	return prev_sampling_distribution_.get();
+    }
+
 private:
     void UpdateParticleCluster(size_t num_iterations) {
+#ifndef NDEBUG
+        feenableexcept(FE_INVALID | FE_OVERFLOW);
+#endif
         PrevSampleReweighingHelper prev_sample_reweighing{prev_sampling_distribution_.get()};
 
         QFuncEstForGreedy policy_update_estimator{env_params_, qfunc_primary_,
