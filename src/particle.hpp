@@ -149,7 +149,7 @@ public:
         return ParentT::end();
     }
 
-    inline const_iterator cbegin() const {
+    inline const_iterator begin() const {
         return ParentT::cbegin();
     }
 

@@ -13,11 +13,11 @@ public:
     }
 
     std::vector<FloatT>& GetWeights() {
-	return weights_;
+        return weights_;
     }
 
     const std::vector<FloatT>& GetWeights() const {
-	return weights_;
+        return weights_;
     }
 
 private:
@@ -28,7 +28,7 @@ template <class T>
 class StationaryDensityEstimator {
 public:
     template <class S>
-    StationaryDensityEstimator(const AbstractKernel<T>& kernel,
+    StationaryDensityEstimator(AbstractKernel<T>* kernel,
                                const AbstractInitializer<S, MemoryView>& initializer,
                                size_t cluster_size)
         : kernel_{kernel},
@@ -37,53 +37,57 @@ public:
     }
 
     void MakeIteration(size_t num) {
-	if (num == 0) {
-	    return;
-	}
+        if (num == 0) {
+            return;
+        }
 
         for (size_t i = 0; i < num; ++i) {
             MakeIterationHelper();
         }
 
-	MakeWeighing();
+        MakeWeighing();
     }
 
     const WeightedParticleCluster& GetCluster() const {
-	return cluster_;
+        return cluster_;
     }
 
     WeightedParticleCluster& GetCluster() {
-	return cluster_;
+        return cluster_;
     }
 
     AbstractKernel<T>& GetKernel() {
-	return kernel_;
+        return *kernel_;
     }
 
     const AbstractKernel<T>& GetKernel() const {
-	return kernel_;
+        return *kernel_;
+    }
+
+    void ResetKernel(AbstractKernel<T>* new_kernel) {
+        kernel_ = new_kernel;
     }
 
 private:
     void MakeIterationHelper() {
         for (size_t i = 0; i < cluster_.size(); ++i) {
-            kernel_.Evolve(cluster_[i], &secondary_cluster_[i]);
+            kernel_->Evolve(cluster_[i], &secondary_cluster_[i]);
         }
         std::swap(static_cast<ParticleCluster&>(cluster_), secondary_cluster_);
     }
 
     void MakeWeighing() {
-	for (size_t i = 0; i < cluster_.size(); ++i) {
-	    auto& particle = cluster_[i];
-	    FloatT& particle_weight = cluster_.GetWeights()[i];
-	    particle_weight = 0;
-	    for (const auto& from_particle : secondary_cluster_) {
-		particle_weight += kernel_.GetTransDensity(from_particle, particle);
-	    }
-	}
+        for (size_t i = 0; i < cluster_.size(); ++i) {
+            auto& particle = cluster_[i];
+            FloatT& particle_weight = cluster_.GetWeights()[i];
+            particle_weight = 0;
+            for (const auto& from_particle : secondary_cluster_) {
+                particle_weight += kernel_->GetTransDensity(from_particle, particle);
+            }
+        }
     }
 
-    const AbstractKernel<T>& kernel_;
+    AbstractKernel<T>* kernel_;
     WeightedParticleCluster cluster_;
     ParticleCluster secondary_cluster_;
 };

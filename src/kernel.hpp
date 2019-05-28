@@ -116,11 +116,11 @@ private:
 };
 
 template <class DerivedPolicy, class... T>
-class MDPKernel final : public AbstractKernel<MDPKernel<T...>> {
+class MDPKernel final : public AbstractKernel<MDPKernel<DerivedPolicy, T...>> {
 public:
-    MDPKernel(ActionConditionedKernel<T...> action_conditioned_kernel,
+    MDPKernel(const ActionConditionedKernel<T...>& action_conditioned_kernel,
               AbstractAgentPolicy<DerivedPolicy>* agent_policy)
-        : conditioned_kernel_(std::move(action_conditioned_kernel)), agent_policy_(agent_policy) {
+        : conditioned_kernel_{action_conditioned_kernel}, agent_policy_{agent_policy} {
     }
 
     void ResetPolicy(AbstractAgentPolicy<DerivedPolicy>* agent_policy) {
@@ -144,6 +144,6 @@ public:
     }
 
 private:
-    ActionConditionedKernel<T...> conditioned_kernel_;
+    const ActionConditionedKernel<T...>& conditioned_kernel_;
     AbstractAgentPolicy<DerivedPolicy>* agent_policy_{nullptr};
 };
