@@ -4,6 +4,7 @@
 #include <src/particle_storage.hpp>
 #include <src/bellman.hpp>
 #include <src/bellman_operators/uniform_operator.hpp>
+#include <src/bellman_operators/stationary_operator.hpp>
 #include <src/bellman_operators/qfunc.hpp>
 #include <src/bellman_operators/environment.hpp>
 
@@ -107,20 +108,19 @@ public:
 
     template <class S1, class S2>
     void Evolve(const Particle<S1>& from, Particle<S2>* to) const {
-        auto [travel_dist_down, travel_dist_up] = MaxAllowedTravelDists(from);
-        std::uniform_real_distribution<FloatT> delta{travel_dist_down, travel_dist_up};
+        auto [travel_down, travel_up] = MaxAllowedTravelDists(from);
+        std::uniform_real_distribution<FloatT> delta{travel_down, travel_up};
 
-        (*to)[0] = from[0] + delta(*rd_);
+        (*to)[0] = delta(*rd_);
     }
 
     template <class S1, class S2>
     FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
-        auto [travel_dist_down, travel_dist_up] = MaxAllowedTravelDists(from);
-        FloatT dist = to[0] - from[0];
-        if (dist > travel_dist_up || dist < travel_dist_down) {
+        auto [travel_down, travel_up] = MaxAllowedTravelDists(from);
+        if (to[0] > travel_up || to[0] < travel_down) {
             return 0;
         } else {
-            return 1. / (travel_dist_up - travel_dist_down);
+            return 1. / (travel_up - travel_down);
         }
     }
 
@@ -133,20 +133,17 @@ private:
     std::pair<FloatT, FloatT> MaxAllowedTravelDists(const Particle<S1>& from) const {
         auto truncate = [](FloatT val) { return std::max(-1., std::min(val, 1.)); };
 
-        FloatT disp = 0.15;
+        const FloatT disp = 0.15;
         FloatT travel_up = truncate(from[0] + kActionDelta * direction + disp);
         FloatT travel_down = truncate(from[0] + kActionDelta * direction - disp);
 
         if (travel_up >= 0.99) {
-            travel_down = travel_up - disp;
+            travel_down = travel_up - 2 * disp;
         }
 
         if (travel_down <= -0.99) {
-            travel_up = travel_down + disp;
+            travel_up = travel_down + 2 * disp;
         }
-
-        travel_down -= from[0];
-        travel_up -= from[0];
 
         return {travel_down, travel_up};
     }
@@ -161,6 +158,39 @@ struct RewardFunc {
 };
 }  // namespace SimpleModel
 
+TEST(StationaryEstim, SimpleModel) {
+    std::mt19937 rd{423};
+    const size_t kClusterSize{1024};
+    SimpleModel::Kernel<0> kernel{&rd};
+
+    std::uniform_real_distribution<FloatT> init_distr{0., 0.2};
+
+    StationaryDensityEstimator estimator{
+        &kernel,
+        RandomVectorizingInitializer<MemoryView, decltype(init_distr), std::mt19937>{1, &rd,
+                                                                                     init_distr},
+        kClusterSize};
+    estimator.MakeIteration(100);
+
+    size_t leq_point{0};
+    const FloatT point = 0.5;
+    const FloatT perc = FloatT(3) / 4;
+    for (const Particle<MemoryView>& part : estimator.GetCluster()) {
+        if (part[0] < point) {
+            ++leq_point;
+        }
+    }
+    FloatT result = FloatT(leq_point) / kClusterSize;
+
+    ASSERT_TRUE(result < perc + 0.08);
+    ASSERT_TRUE(result > perc - 0.08);
+
+    FloatT density = estimator.GetCluster().GetWeights()[0];
+
+    ASSERT_TRUE(density > 0.5 - 0.1);
+    ASSERT_TRUE(density < 0.5 + 0.1);
+}
+
 TEST(UniformBellman, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
@@ -168,7 +198,7 @@ TEST(UniformBellman, SimpleModel) {
 
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    UniformBellmanOperator bellman_op{env_params, 2048 * 16, 1., &rd};
+    UniformBellmanOperator bellman_op{env_params, 256, 1., &rd};
     for (int i = 0; i < 30; ++i) {
         bellman_op.MakeIteration();
     }
@@ -181,9 +211,22 @@ TEST(UniformBellman, SimpleModel) {
 
     Particle state{ZeroInitializer(1)};
     for (int i = 0; i < 200; ++i) {
-        std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
-                  << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
-                  << "\n";
+        // std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
+        //<< qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
+        //<< "\n";
         mdp_kernel.Evolve(state, &state);
+    }
+}
+
+TEST(StationaryBellmanOperator, SimpleModel) {
+    std::mt19937 rd{1234};
+    ActionConditionedKernel action_conditioned_kernel{
+        SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
+    EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
+
+    StationaryBellmanOperatorParams operator_params{2048, 100., 1., -1., 10};
+    StationaryBellmanOperator bellman_op{env_params, operator_params, &rd};
+    for (int i = 0; i < 30; ++i) {
+        bellman_op.MakeIteration();
     }
 }

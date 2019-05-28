@@ -81,8 +81,9 @@ private:
             auto& particle = cluster_[i];
             FloatT& particle_weight = cluster_.GetWeights()[i];
             particle_weight = 0;
-            for (const auto& from_particle : secondary_cluster_) {
-                particle_weight += kernel_->GetTransDensity(from_particle, particle);
+            for (const auto& from_particle : cluster_) {
+                particle_weight +=
+                    kernel_->GetTransDensity(from_particle, particle) / cluster_.size();
             }
         }
     }

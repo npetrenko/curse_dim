@@ -7,17 +7,11 @@
 #include <optional>
 
 class DiscreteQFuncEst : public AbstractQFuncEstimate<DiscreteQFuncEst> {
+    friend class AbstractQFuncEstimate<DiscreteQFuncEst>;
+
 public:
     DiscreteQFuncEst(size_t num_particles, size_t dim)
         : values_(num_particles * dim, 0), dim_(dim) {
-    }
-
-    FloatT& ValueAtIndex(size_t state_ix, size_t action_number) {
-        return values_[state_ix * dim_ + action_number];
-    }
-
-    FloatT ValueAtIndex(size_t state_ix, size_t action_number) const {
-        return values_[state_ix * dim_ + action_number];
     }
 
     void SetZero() {
@@ -44,6 +38,15 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream&, const DiscreteQFuncEst&);
+
+private:
+    FloatT& ValueAtIndexImpl(size_t state_ix, size_t action_number) {
+        return values_[state_ix * dim_ + action_number];
+    }
+
+    FloatT ValueAtIndexImpl(size_t state_ix, size_t action_number) const {
+        return values_[state_ix * dim_ + action_number];
+    }
 
 protected:
     std::vector<FloatT> values_;
@@ -72,38 +75,14 @@ std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
 template <class RewardFuncT, class ImportanceFuncT, class... T>
 class QFuncEstForGreedy
     : public AbstractQFuncEstimate<QFuncEstForGreedy<RewardFuncT, ImportanceFuncT, T...>> {
+    friend class AbstractQFuncEstimate<QFuncEstForGreedy<RewardFuncT, ImportanceFuncT, T...>>;
+
 public:
     QFuncEstForGreedy(EnvParams<RewardFuncT, T...> env_params, DiscreteQFuncEst dqf,
                       ImportanceFuncT importance_func)
         : env_params_{std::move(env_params)},
           discrete_est_{std::move(dqf)},
           importance_func_{std::move(importance_func)} {
-    }
-
-    template <class S>
-    FloatT ValueAtPoint(const Particle<S>& state, size_t action) const {
-        const ParticleCluster& cluster = discrete_est_.GetParticleCluster();
-        GreedyPolicy greedy_policy(*this);
-
-        FloatT result = env_params_.reward_function(state, action);
-        for (size_t i = 0; i < cluster.size(); ++i) {
-            const Particle<MemoryView>& next_state = cluster[i];
-            size_t next_state_reaction = greedy_policy.React(i);
-            result +=
-                env_params_.kGamma *
-                env_params_.ac_kernel.GetTransDensityConditionally(state, next_state, action) *
-                this->ValueAtIndex(i, next_state_reaction) * importance_func_(next_state);
-        }
-
-        return result;
-    }
-
-    FloatT ValueAtIndex(size_t index, size_t action) const {
-        return discrete_est_.ValueAtIndex(index, action);
-    }
-
-    FloatT& ValueAtIndex(size_t index, size_t action) {
-        return discrete_est_.ValueAtIndex(index, action);
     }
 
     size_t NumActions() const {
@@ -114,6 +93,33 @@ public:
     friend std::ostream& operator<<(std::ostream&, const QFuncEstForGreedy<S, RF, IF>&);
 
 private:
+    template <class S>
+    FloatT ValueAtPointImpl(const Particle<S>& state, size_t action) const {
+        const ParticleCluster& cluster = discrete_est_.GetParticleCluster();
+        GreedyPolicy greedy_policy(*this);
+
+        FloatT result = env_params_.reward_function(state, action);
+        for (size_t next_state_index = 0; next_state_index < cluster.size(); ++next_state_index) {
+            const Particle<MemoryView>& next_state = cluster[next_state_index];
+            size_t next_state_reaction = greedy_policy.React(next_state_index);
+            result +=
+                env_params_.kGamma *
+                env_params_.ac_kernel.GetTransDensityConditionally(state, next_state, action) *
+                this->ValueAtIndex(next_state_index, next_state_reaction) *
+                importance_func_(next_state_index);
+        }
+
+        return result;
+    }
+
+    FloatT ValueAtIndexImpl(size_t index, size_t action) const {
+        return discrete_est_.ValueAtIndex(index, action);
+    }
+
+    FloatT& ValueAtIndexImpl(size_t index, size_t action) {
+        return discrete_est_.ValueAtIndex(index, action);
+    }
+
     EnvParams<RewardFuncT, T...> env_params_;
     DiscreteQFuncEst discrete_est_;
     ImportanceFuncT importance_func_;

@@ -22,6 +22,16 @@ struct StationaryBellmanOperatorParams {
     size_t num_burnin_iterations = 10;
 };
 
+struct PrevSampleReweighingHelper {
+    WeightedParticleCluster* prev_sample;
+    FloatT operator()(size_t sample_index) const {
+        if (!prev_sample) {
+            return 1.;
+        }
+        return 1. / prev_sample->GetWeights()[sample_index];
+    }
+};
+
 template <class RandomDeviceT, class RewardFuncT, class EstimatorKernelT, class... T>
 class StationaryBellmanOperator {
 public:
@@ -47,6 +57,7 @@ public:
         UpdateParticleCluster(operator_params_.num_burnin_iterations);
 
         qfunc_primary_.SetParticleCluster(density_estimator_->GetCluster());
+	qfunc_secondary_.SetParticleCluster(density_estimator_->GetCluster());
     }
 
     void MakeIteration() {
@@ -101,7 +112,12 @@ public:
 
 private:
     void UpdateParticleCluster(size_t num_iterations) {
-        GreedyPolicy policy{qfunc_primary_};
+        PrevSampleReweighingHelper prev_sample_reweighing{prev_sampling_distribution_.get()};
+
+        QFuncEstForGreedy policy_update_estimator{env_params_, qfunc_primary_,
+                                                  // should be previous density here
+                                                  prev_sample_reweighing};
+        GreedyPolicy policy{policy_update_estimator};
         MDPKernel mdp_kernel{env_params_.ac_kernel, &policy};
         density_estimator_->ResetKernel(&mdp_kernel);
 
@@ -111,14 +127,6 @@ private:
 
         // Computing qfunction on new sample
         {
-            auto prev_sample_reweighing =
-                [prev_sample = prev_sampling_distribution_.get()](size_t sample_index) {
-                    if (!prev_sample) {
-                        return 1.;
-                    }
-                    return 1. / prev_sample->GetWeights()[sample_index];
-                };
-
             QFuncEstForGreedy new_particles_estimator{env_params_, qfunc_primary_,
                                                       // should be previous density here
                                                       prev_sample_reweighing};
@@ -130,7 +138,7 @@ private:
                 for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim();
                      ++action_num) {
                     new_estimate.ValueAtIndex(state_ix, action_num) =
-                        new_estimate.ValueAtPoint(invariant_distr[state_ix], action_num);
+                        new_particles_estimator.ValueAtPoint(invariant_distr[state_ix], action_num);
                 }
             }
 
@@ -172,8 +180,9 @@ private:
 template <class RandomDeviceT, class RewardFuncT, class... T>
 StationaryBellmanOperator(EnvParams<RewardFuncT, T...> env_params,
                           const StationaryBellmanOperatorParams&, RandomDeviceT*)
-    ->StationaryBellmanOperator<RandomDeviceT, RewardFuncT,
-                                decltype(MDPKernel{
-                                    env_params.ac_kernel,
-                                    static_cast<GreedyPolicy<DiscreteQFuncEst>*>(nullptr)}),
-                                T...>;
+    ->StationaryBellmanOperator<
+        RandomDeviceT, RewardFuncT,
+        decltype(MDPKernel{env_params.ac_kernel,
+                           static_cast<GreedyPolicy<QFuncEstForGreedy<
+                               RewardFuncT, PrevSampleReweighingHelper, T...>>*>(nullptr)}),
+        T...>;

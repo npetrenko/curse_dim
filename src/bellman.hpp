@@ -10,15 +10,15 @@ class AbstractQFuncEstimate : public CRTPDerivedCaster<DerivedT> {
 public:
     template <class StorageT>
     FloatT ValueAtPoint(const Particle<StorageT>& point, size_t action_num) const {
-        return this->GetDerived()->ValueAtPoint(point, action_num);
+        return this->GetDerived()->ValueAtPointImpl(point, action_num);
     }
 
     FloatT ValueAtIndex(size_t index, size_t action_num) const {
-        return this->GetDerived()->ValueAtIndex(index, action_num);
+        return this->GetDerived()->ValueAtIndexImpl(index, action_num);
     }
 
     FloatT& ValueAtIndex(size_t index, size_t action_num) {
-        return this->GetDerived()->ValueAtIndex(index, action_num);
+        return this->GetDerived()->ValueAtIndexImpl(index, action_num);
     }
 
     size_t NumActions() const {
