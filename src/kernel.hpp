@@ -14,18 +14,18 @@ template <class DerivedT>
 class AbstractKernel : public CRTPDerivedCaster<DerivedT> {
 public:
     template <class S1, class S2>
-    void Evolve(const Particle<S1>& from, Particle<S2>* output) const {
+    inline void Evolve(const Particle<S1>& from, Particle<S2>* output) const {
         assert(from.GetDim() == output->GetDim());
         this->GetDerived()->Evolve(from, output);
     }
 
     template <class S1, class S2>
-    FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
+    inline FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
         assert(from.GetDim() == to.GetDim());
         return this->GetDerived()->GetTransDensity(from, to);
     }
 
-    size_t GetSpaceDim() const {
+    inline size_t GetSpaceDim() const {
         return this->GetDerived()->GetSpaceDim();
     }
 };
@@ -34,18 +34,18 @@ template <class DerivedT>
 class AbstractConditionedKernel : public CRTPDerivedCaster<DerivedT> {
 public:
     template <class S1, class S2>
-    void EvolveConditionally(const Particle<S1>& from, Particle<S2>* output,
+    inline void EvolveConditionally(const Particle<S1>& from, Particle<S2>* output,
                              size_t condition) const {
         this->GetDerived()->EvolveConditionally(from, output, condition);
     }
 
     template <class S1, class S2>
-    FloatT GetTransDensityConditionally(const Particle<S1>& from, const Particle<S2>& to,
+    inline FloatT GetTransDensityConditionally(const Particle<S1>& from, const Particle<S2>& to,
                                         size_t condition) const {
         return this->GetDerived()->GetTransDensityConditionally(from, to, condition);
     }
 
-    size_t GetSpaceDim() const {
+    inline size_t GetSpaceDim() const {
         return this->GetDerived()->GetSpaceDim();
     }
 };
@@ -95,7 +95,7 @@ private:
         Particle<S2>* to;
 
         template <class Ker>
-        void operator()(const Ker& kernel) {
+        inline void operator()(const Ker& kernel) {
             kernel.Evolve(from, to);
         }
     };
@@ -107,7 +107,7 @@ private:
         FloatT& result;
 
         template <class Ker>
-        void operator()(const Ker& kernel) {
+        inline void operator()(const Ker& kernel) {
             result = kernel.GetTransDensity(from, to);
         }
     };
@@ -123,7 +123,7 @@ public:
         : conditioned_kernel_{action_conditioned_kernel}, agent_policy_{agent_policy} {
     }
 
-    void ResetPolicy(AbstractAgentPolicy<DerivedPolicy>* agent_policy) {
+    inline void ResetPolicy(AbstractAgentPolicy<DerivedPolicy>* agent_policy) {
         agent_policy_ = agent_policy;
     }
 

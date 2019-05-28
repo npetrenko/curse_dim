@@ -35,11 +35,11 @@ template <class DerivedT>
 class CRTPDerivedCaster {
 protected:
     using DerivedClass = DerivedT;
-    DerivedT* GetDerived() {
+    inline DerivedT* GetDerived() {
         return static_cast<DerivedT*>(this);
     }
 
-    const DerivedT* GetDerived() const {
+    inline const DerivedT* GetDerived() const {
         return static_cast<const DerivedT*>(this);
     }
 };

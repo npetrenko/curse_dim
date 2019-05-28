@@ -20,6 +20,13 @@ public:
         }
     }
 
+    template <class RandomDistT, class RandomDeviceT>
+    void SetRandom(RandomDeviceT* rd, RandomDistT distr) {
+	for (auto& val: values_) {
+	    val = distr(*rd);
+	}
+    }
+
     template <class ClusterT>
     void SetParticleCluster(ClusterT&& other) {
         particle_cluster_ = std::forward<ClusterT>(other);

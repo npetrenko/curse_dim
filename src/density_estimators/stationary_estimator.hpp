@@ -56,10 +56,6 @@ public:
         return cluster_;
     }
 
-    AbstractKernel<T>& GetKernel() {
-        return *kernel_;
-    }
-
     const AbstractKernel<T>& GetKernel() const {
         return *kernel_;
     }

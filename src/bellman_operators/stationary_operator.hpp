@@ -19,6 +19,7 @@ struct StationaryBellmanOperatorParams {
     size_t num_particles;
     FloatT density_ratio_threshold, init_radius;
     FloatT uniform_sampling_ratio;
+    FloatT invariant_density_threshold;
     size_t num_burnin_iterations = 10;
 };
 
@@ -28,23 +29,28 @@ struct PrevSampleReweighingHelper {
         if (!prev_sample) {
             return 1.;
         }
-        return 1. / prev_sample->GetWeights()[sample_index];
+        FloatT dens = prev_sample->GetWeights()[sample_index];
+        if (dens < 1e-5) {
+            return 0;
+        }
+        return 1. / dens;
     }
 };
 
 template <class RandomDeviceT, class RewardFuncT, class EstimatorKernelT, class... T>
 class StationaryBellmanOperator {
 public:
-    StationaryBellmanOperator(EnvParams<RewardFuncT, T...> env_params,
+    StationaryBellmanOperator(const EnvParams<RewardFuncT, T...>& env_params,
                               const StationaryBellmanOperatorParams& operator_params,
                               RandomDeviceT* random_device)
-        : env_params_{std::move(env_params)},
+        : env_params_{env_params},
           operator_params_{operator_params},
           random_device_{random_device},
           qfunc_primary_{operator_params_.num_particles, env_params_.ac_kernel.GetDim()},
           qfunc_secondary_{operator_params_.num_particles, env_params_.ac_kernel.GetDim()},
           additional_weights_{operator_params_.num_particles} {
 
+        assert(operator_params.init_radius > 0);
         std::uniform_real_distribution<FloatT> distr{-operator_params_.init_radius,
                                                      operator_params_.init_radius};
 
@@ -55,7 +61,12 @@ public:
             nullptr, initializer, operator_params_.num_particles);
 
         qfunc_primary_.SetParticleCluster(density_estimator_->GetCluster());
-	qfunc_secondary_.SetParticleCluster(density_estimator_->GetCluster());
+        qfunc_secondary_.SetParticleCluster(density_estimator_->GetCluster());
+        {
+            std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
+            qfunc_primary_.SetRandom(random_device, q_init);
+            qfunc_secondary_.SetRandom(random_device, q_init);
+        }
 
         UpdateParticleCluster(operator_params_.num_burnin_iterations);
     }
@@ -64,7 +75,7 @@ public:
 #ifndef NDEBUG
         feenableexcept(FE_INVALID | FE_OVERFLOW);
 #endif
-        UpdateParticleCluster(4);
+        UpdateParticleCluster(1);
 
         auto& cluster = qfunc_primary_.GetParticleCluster();
         GreedyPolicy policy{qfunc_primary_};
@@ -80,16 +91,21 @@ public:
                 for (size_t action_number = 0; action_number < ac_kernel.GetDim();
                      ++action_number) {
                     size_t reaction = policy.React(j);
-                    FloatT density = ac_kernel.GetTransDensityConditionally(cluster[i], cluster[j],
-                                                                            action_number) /
-                                     density_estimator_->GetCluster().GetWeights()[j];
+                    FloatT stationary_density = density_estimator_->GetCluster().GetWeights()[j];
+                    if (stationary_density < operator_params_.invariant_density_threshold) {
+                        continue;
+                    }
+                    FloatT weighter_density = ac_kernel.GetTransDensityConditionally(
+                                                  cluster[i], cluster[j], action_number) /
+                                              stationary_density;
 
-                    if (density > operator_params_.density_ratio_threshold) {
+                    if (weighter_density > operator_params_.density_ratio_threshold) {
                         continue;
                     }
 
                     qfunc_secondary_.ValueAtIndex(i, action_number) +=
-                        env_params_.kGamma * density * qfunc_primary_.ValueAtIndex(j, reaction) *
+                        env_params_.kGamma * weighter_density *
+                        qfunc_primary_.ValueAtIndex(j, reaction) *
                         additional_weights_[i][action_number];
                 }
             }
@@ -107,7 +123,7 @@ public:
     }
 
     const WeightedParticleCluster* GetSamplingDistribution() {
-	return prev_sampling_distribution_.get();
+        return prev_sampling_distribution_.get();
     }
 
 private:
@@ -156,12 +172,15 @@ private:
                 for (size_t particle_ix = 0; particle_ix < invariant_distr.size(); ++particle_ix) {
                     const auto& particle = invariant_distr[particle_ix];
                     FloatT pmass = invariant_distr.GetWeights()[particle_ix];
+                    if (pmass < operator_params_.invariant_density_threshold) {
+                        continue;
+                    }
                     sum +=
                         env_params_.ac_kernel.GetTransDensityConditionally(
                             qfunc_primary_.GetParticleCluster()[target_ix], particle, action_num) /
                         pmass;
                 }
-                additional_weights_[target_ix][action_num] = 1 / sum;
+                additional_weights_[target_ix][action_num] = sum ? (1 / sum) : 0;
             }
         }
 

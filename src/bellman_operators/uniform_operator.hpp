@@ -38,6 +38,11 @@ public:
             env_params_.ac_kernel.GetSpaceDim(), random_device, distr};
 
         qfunc_primary_.SetParticleCluster(ParticleCluster{num_particles, initializer});
+        {
+            std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
+            qfunc_primary_.SetRandom(random_device, q_init);
+            qfunc_secondary_.SetRandom(random_device, q_init);
+        }
 
         NormalizeWeights();
     }

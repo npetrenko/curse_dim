@@ -17,16 +17,16 @@ public:
         : storage_{storage}, dim_{dim} {
     }
 
-    void SetStorage(ParticleStorage* storage) const {
+    inline void SetStorage(ParticleStorage* storage) const {
         storage_ = storage;
     }
 
     template <class Container>
-    void Initialize(Container* data) const {
+    inline void Initialize(Container* data) const {
         this->GetDerived()->Initialize(data);
     }
 
-    StorageT CreateStorage() const {
+    inline StorageT CreateStorage() const {
         if constexpr (std::is_same_v<StorageT, MemoryView>) {
             assert(storage_);
             return storage_->AllocateForParticle(dim_);
@@ -110,7 +110,7 @@ public:
 
 protected:
     using BaseT = AbstractInitializer<VectorizingInitializer<DerivedT, StorageT>, StorageT>;
-    FloatT GetIthElem(size_t i) const {
+    inline FloatT GetIthElem(size_t i) const {
         return CRTPDerivedCaster<DerivedT>::GetDerived()->GetIthElemImpl(i);
     }
 };

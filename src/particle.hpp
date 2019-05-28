@@ -7,8 +7,12 @@
 #include <src/initializer.hpp>
 #include <src/particle_storage.hpp>
 
+class ParticleCluster;
+
 template <class StorageT = ParticleStorage>
 class Particle {
+    friend class ParticleCluster;
+
 public:
     template <class T>
     Particle(const AbstractInitializer<T, StorageT>& initializer)
@@ -29,7 +33,7 @@ public:
         std::copy(other.data_.begin(), other.data_.end(), data_.begin());
     }
 
-    size_t GetDim() const {
+    inline size_t GetDim() const {
         return data_.size();
     }
 
@@ -89,23 +93,17 @@ public:
     }
 
     template <class S>
-    Particle<ParticleStorage> operator-(const Particle<S>& other) {
-        Particle<ParticleStorage> copy{*this};
-        copy -= other;
-        return copy;
-    }
-
-    template <class S>
     friend std::ostream& operator<<(std::ostream& stream, const Particle<S>& part);
 
     using iterator = typename StorageT::iterator;
-    iterator begin() {
-	return data_.begin();
+    inline iterator begin() {
+        return data_.begin();
     }
 
-    iterator end() {
-	return data_.end();
+    inline iterator end() {
+        return data_.end();
     }
+
 private:
     StorageT data_;
 };
@@ -128,6 +126,22 @@ public:
         }
     }
 
+    using ParentT = std::vector<Particle<MemoryView>>;
+    ParticleCluster(const ParticleCluster& other) : ParentT{other}, storage_{other.storage_} {
+        ResetChildParticles(other.storage_.GetCurrentSize());
+    }
+
+    ParticleCluster(ParticleCluster&&) = default;
+
+    ParticleCluster& operator=(const ParticleCluster& other) {
+        static_cast<ParentT&>(*this) = static_cast<const ParentT&>(other);
+        storage_ = other.storage_;
+        ResetChildParticles(other.storage_.GetCurrentSize());
+        return *this;
+    }
+
+    ParticleCluster& operator=(ParticleCluster&&) = default;
+
     using ParticleT = Particle<MemoryView>;
     inline ParticleT& operator[](size_t i) {
         return static_cast<ParentT&>(*this)[i];
@@ -137,7 +151,6 @@ public:
         return static_cast<const ParentT&>(*this)[i];
     }
 
-    using ParentT = std::vector<Particle<MemoryView>>;
     using iterator = ParentT::iterator;
     using const_iterator = ParentT::const_iterator;
 
@@ -162,5 +175,14 @@ public:
     }
 
 private:
+    void ResetChildParticles(size_t ensure_size) {
+        FloatT* storage_ptr = &storage_[0];
+        for (auto& particle : *this) {
+            particle.data_ = MemoryView{storage_ptr, particle.data_.size()};
+            storage_ptr += particle.data_.size();
+        }
+        assert(ensure_size == static_cast<size_t>(storage_ptr - &storage_[0]));
+	(void)ensure_size;
+    }
     ParticleStorage storage_;
 };

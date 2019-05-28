@@ -123,8 +123,12 @@ public:
         return std::vector<FloatT>::size();
     }
 
-    void Clear() {
+    inline void Clear() {
         current_pos_ = 0;
+    }
+
+    inline size_t GetCurrentSize() const {
+	return current_pos_;
     }
 
 private:
