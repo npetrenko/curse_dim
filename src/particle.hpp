@@ -134,9 +134,12 @@ public:
     ParticleCluster(ParticleCluster&&) = default;
 
     ParticleCluster& operator=(const ParticleCluster& other) {
+	if (&other == this) {
+	    return *this;
+	}
         static_cast<ParentT&>(*this) = static_cast<const ParentT&>(other);
         storage_ = other.storage_;
-        ResetChildParticles(other.storage_.GetCurrentSize());
+        ResetChildParticles(other.storage_);
         return *this;
     }
 
@@ -175,7 +178,10 @@ public:
     }
 
 private:
-    void ResetChildParticles(size_t ensure_size) {
+    // Reallocating all allocated particles. Since particles can only be stored in-order, and they
+    // cannot be remove from the storage in the middle, this is indeed a correct code
+    void ResetChildParticles(const ParticleStorage& origin_storage) {
+        const size_t ensure_size = origin_storage.size();
         FloatT* storage_ptr = &storage_[0];
         for (auto& particle : *this) {
             particle.data_ = MemoryView{storage_ptr, particle.data_.size()};

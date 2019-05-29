@@ -8,6 +8,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-c++98-comp
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -mtune=native")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -march=native -mtune=native -fno-omit-frame-pointer")
 
+find_package(glog 0.4.0 REQUIRED)
 find_package(GTest REQUIRED)
 enable_testing()
 
@@ -25,11 +26,11 @@ set(TEST_DIR "tests")
 
 add_executable(main "${SRC_DIR}/main.cpp")
 target_include_directories(main PUBLIC .)
-# target_link_libraries(main pthread)
+target_link_libraries(main glog::glog)
 target_link_options(main PUBLIC -L${JEMALLOC_LIBDIR} -Wl,-rpath,${JEMALLOC_LIBDIR} -ljemalloc "${JEMALLOC_LIBS}")
 
 add_executable(tests "${TEST_DIR}/tests.cpp")
 target_include_directories(tests PUBLIC .)
-target_link_libraries(tests gtest_main gtest)
+target_link_libraries(tests gtest_main gtest glog::glog)
 
 add_test(tests tests)

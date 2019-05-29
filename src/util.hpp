@@ -19,9 +19,9 @@ inline std::ostream& operator<<(std::ostream& stream, const Cont& container) {
 }
 
 template <class Func, size_t lower_bound = 0, class... T>
-inline static void CallOnTupleIx(Func&& cb, const std::tuple<T...>& tup, size_t index) {
+inline static void CallOnTupleIx(Func&& cb, const std::tuple<T...>& tup, size_t index) noexcept {
     if constexpr (sizeof...(T) == lower_bound) {
-        throw std::runtime_error("out of range");
+        std::terminate();
     } else {
         if (lower_bound == index) {
             cb(std::get<lower_bound>(tup));

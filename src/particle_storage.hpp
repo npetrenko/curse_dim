@@ -67,6 +67,10 @@ public:
         return {data_ + size_};
     }
 
+    FloatT* GetDataPtr() const {
+	return data_;
+    }
+
 private:
     FloatT* data_;
     size_t size_;

@@ -11,6 +11,8 @@
 #include <cassert>
 #include <optional>
 
+#include <glog/logging.h>
+
 #ifndef NDEBUG
 #include <fenv.h>
 #endif
@@ -23,16 +25,9 @@ public:
         : env_params_{std::move(env_params)},
           radius_{radius},
           random_device_{random_device},
+          additional_weights_(num_particles),
           qfunc_primary_{num_particles, env_params_.ac_kernel.GetDim()},
           qfunc_secondary_{num_particles, env_params_.ac_kernel.GetDim()} {
-
-        additional_weights_.resize(num_particles);
-        for (auto& elem : additional_weights_) {
-            for (auto& point : elem) {
-                point = 1.;
-            }
-        }
-
         std::uniform_real_distribution<FloatT> distr{-radius, radius};
         RandomVectorizingInitializer<MemoryView, decltype(distr), RandomDeviceT> initializer{
             env_params_.ac_kernel.GetSpaceDim(), random_device, distr};
@@ -72,7 +67,7 @@ public:
                                                                             action_number);
                     qfunc_secondary_.ValueAtIndex(i, action_number) +=
                         env_params_.kGamma * density * qfunc_primary_.ValueAtIndex(j, reaction) *
-                        additional_weights_[i][action_number];
+                        additional_weights_[i][action_number] / cluster.size();
                 }
             }
         }
@@ -98,9 +93,12 @@ private:
                 FloatT sum = 0;
                 for (size_t j = 0; j < cluster.size(); ++j) {
                     sum += env_params_.ac_kernel.GetTransDensityConditionally(
-                        /*from*/ cluster[i], cluster[j], action_number);
+                               /*from*/ cluster[i], cluster[j], action_number) /
+                           cluster.size();
                 }
-                additional_weights_[i][action_number] /= sum;
+                // Importance sampling correction is also included into sum, so it may be not 
+                // close to 1
+                additional_weights_[i][action_number] = 1 / sum;
             }
         }
     }

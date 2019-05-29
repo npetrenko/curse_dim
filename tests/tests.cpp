@@ -78,25 +78,6 @@ private:
     ParticleStorage tmp_storage_;
 };
 
-TEST(Probability, SummsToOne) {
-    static const size_t kDim = 2;
-    std::mt19937 random_device{1234};
-
-    ARKernel kernel{&random_device};
-    using InitT = RandomVectorizingInitializer<MemoryView, std::uniform_real_distribution<FloatT>,
-                                               std::mt19937>;
-    ParticleCluster cluster{
-        1024 * 1024, InitT{kDim, &random_device, std::uniform_real_distribution<FloatT>{-6, 6}}};
-    Particle<ParticleStorage> origin{ZeroInitializer(kDim)};
-
-    FloatT prob = 0;
-    for (const auto& elem : cluster) {
-        prob += kernel.GetTransDensity(origin, elem) * (pow(12, kDim) / cluster.size());
-    }
-
-    ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
-}
-
 namespace SimpleModel {
 static const FloatT kActionDelta = 0.07;
 
@@ -158,6 +139,45 @@ struct RewardFunc {
 };
 }  // namespace SimpleModel
 
+template <class KernelT>
+FloatT GetExpectedMass(const size_t kDim) {
+    std::mt19937 random_device{1234};
+
+    KernelT kernel{&random_device};
+    using InitT = RandomVectorizingInitializer<MemoryView, std::uniform_real_distribution<FloatT>,
+                                               std::mt19937>;
+    ParticleCluster cluster{
+        1024 * 1024, InitT{kDim, &random_device, std::uniform_real_distribution<FloatT>{-6, 6}}};
+    Particle<ParticleStorage> origin{ZeroInitializer(kDim)};
+
+    FloatT prob = 0;
+    for (const auto& elem : cluster) {
+        prob += kernel.GetTransDensity(origin, elem) * (pow(12, kDim) / cluster.size());
+    }
+
+    return prob;
+}
+
+TEST(Probability, ARKernelSummsToOne) {
+    FloatT prob = GetExpectedMass<ARKernel>(2);
+    ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+}
+
+TEST(Probability, SimpleModelKernelSummsToOne) {
+    {
+        FloatT prob = GetExpectedMass<SimpleModel::Kernel<-1>>(1);
+        ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+    }
+    {
+        FloatT prob = GetExpectedMass<SimpleModel::Kernel<0>>(1);
+        ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+    }
+    {
+        FloatT prob = GetExpectedMass<SimpleModel::Kernel<1>>(1);
+        ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+    }
+}
+
 TEST(StationaryEstim, SimpleModel) {
     std::mt19937 rd{423};
     const size_t kClusterSize{4096};
@@ -191,44 +211,47 @@ TEST(StationaryEstim, SimpleModel) {
     ASSERT_TRUE(density < 0.5 + 0.1);
 }
 
-TEST(DISABLED_UniformBellman, SimpleModel) {
+TEST(UniformBellman, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
 
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    UniformBellmanOperator bellman_op{env_params, 4096*2, 1., &rd};
-    for (int i = 0; i < 100; ++i) {
+    UniformBellmanOperator bellman_op{env_params, 256, 1., &rd};
+    for (int i = 0; i < 20; ++i) {
         bellman_op.MakeIteration();
     }
 
     QFuncEstForGreedy qfunc_est{env_params, std::move(bellman_op.GetQFunc()),
-                                [](auto) { return 1.; }};
-    // std::cout << qfunc_est << "\n";
+                                // Correction for importance sampling
+                                [](auto) { return 2.; }};
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
     Particle state{ZeroInitializer(1)};
     for (int i = 0; i < 200; ++i) {
-        std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
-                  << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
-                  << "\n";
+	// std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
+	// << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
+	// << "\n";
         mdp_kernel.Evolve(state, &state);
     }
 
     ASSERT_TRUE(state[0]);
 }
 
-TEST(DISABLED_StationaryBellmanOperator, SimpleModel) {
+TEST(StationaryBellmanOperator, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    StationaryBellmanOperatorParams operator_params{
-        2048 /*num_samples*/, 100. /*density threshold*/,           1. /*radius*/,
-        -1. /*unused-uniform-sampling-ratio*/,      1e-3 /*invariant density threshold*/, 2 /*burnin iterations*/};
+    StationaryBellmanOperatorParams operator_params{512 /*num_samples*/,
+                                                    100. /*density threshold*/,
+                                                    1. /*radius*/,
+                                                    -1. /*unused-uniform-sampling-ratio*/,
+                                                    1e-3 /*invariant density threshold*/,
+                                                    1 /*burnin iterations*/};
     StationaryBellmanOperator bellman_op{env_params, operator_params, &rd};
     for (int i = 0; i < 3; ++i) {
         bellman_op.MakeIteration();
@@ -242,7 +265,7 @@ TEST(DISABLED_StationaryBellmanOperator, SimpleModel) {
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
     Particle state{ZeroInitializer(1)};
-    for (int i = 0; i < 200; ++i) {
+    for (int i = 0; i < 50; ++i) {
         std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
                   << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
                   << "\n";

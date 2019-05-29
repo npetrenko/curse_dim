@@ -22,9 +22,9 @@ public:
 
     template <class RandomDistT, class RandomDeviceT>
     void SetRandom(RandomDeviceT* rd, RandomDistT distr) {
-	for (auto& val: values_) {
-	    val = distr(*rd);
-	}
+        for (auto& val : values_) {
+            val = distr(*rd);
+        }
     }
 
     template <class ClusterT>
@@ -113,7 +113,7 @@ private:
                 env_params_.kGamma *
                 env_params_.ac_kernel.GetTransDensityConditionally(state, next_state, action) *
                 this->ValueAtIndex(next_state_index, next_state_reaction) *
-                importance_func_(next_state_index);
+                importance_func_(next_state_index) / discrete_est_.GetParticleCluster().size();
         }
 
         return result;
