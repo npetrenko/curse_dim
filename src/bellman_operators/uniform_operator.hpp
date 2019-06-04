@@ -56,7 +56,7 @@ public:
 
         for (size_t i = 0; i < cluster.size(); ++i) {
             for (size_t action_number = 0; action_number < ac_kernel.GetDim(); ++action_number) {
-                qfunc_secondary_.ValueAtIndex(i, action_number) =
+                qfunc_secondary_.ValueAtIndex(i)[action_number] =
                     env_params_.reward_function(cluster[i], action_number);
             }
             for (size_t j = 0; j < cluster.size(); ++j) {
@@ -65,8 +65,8 @@ public:
                     size_t reaction = policy.React(j);
                     FloatT density = ac_kernel.GetTransDensityConditionally(cluster[i], cluster[j],
                                                                             action_number);
-                    qfunc_secondary_.ValueAtIndex(i, action_number) +=
-                        env_params_.kGamma * density * qfunc_primary_.ValueAtIndex(j, reaction) *
+                    qfunc_secondary_.ValueAtIndex(i)[action_number] +=
+                        env_params_.kGamma * density * qfunc_primary_.ValueAtIndex(j)[reaction] *
                         additional_weights_[i][action_number] / cluster.size();
                 }
             }
@@ -96,7 +96,7 @@ private:
                                /*from*/ cluster[i], cluster[j], action_number) /
                            cluster.size();
                 }
-                // Importance sampling correction is also included into sum, so it may be not 
+                // Importance sampling correction is also included into sum, so it may be not
                 // close to 1
                 additional_weights_[i][action_number] = 1 / sum;
             }

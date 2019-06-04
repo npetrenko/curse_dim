@@ -13,12 +13,18 @@ public:
         return this->GetDerived()->ValueAtPointImpl(point, action_num);
     }
 
-    inline FloatT ValueAtIndex(size_t index, size_t action_num) const {
-        return this->GetDerived()->ValueAtIndexImpl(index, action_num);
+    // Convenience function. Usually allocates result on the heap.
+    template <class StorageT>
+    inline auto ValueAtPoint(const Particle<StorageT>& point) const {
+        return this->GetDerived()->ValueAtPointImpl(point);
     }
 
-    inline FloatT& ValueAtIndex(size_t index, size_t action_num) {
-        return this->GetDerived()->ValueAtIndexImpl(index, action_num);
+    inline ConstMemoryView ValueAtIndex(size_t index) const {
+        return this->GetDerived()->ValueAtIndexImpl(index);
+    }
+
+    inline MemoryView ValueAtIndex(size_t index) {
+        return this->GetDerived()->ValueAtIndexImpl(index);
     }
 
     inline size_t NumActions() const {
@@ -46,14 +52,14 @@ public:
 
     inline size_t React(size_t state_index) const {
         return ReactHelper([this, state_index](size_t action_num) {
-            return qfunc_estimate_.ValueAtIndex(state_index, action_num);
+            return qfunc_estimate_.ValueAtIndex(state_index)[action_num];
         });
     }
 
 private:
     template <class Func>
     size_t ReactHelper(Func frozen_state_callback) const {
-	assert(qfunc_estimate_.NumActions());
+        assert(qfunc_estimate_.NumActions());
         FloatT best_val = frozen_state_callback(0);
         size_t best_action = 0;
         for (size_t i = 1; i < qfunc_estimate_.NumActions(); ++i) {

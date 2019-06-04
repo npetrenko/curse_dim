@@ -70,9 +70,10 @@ public:
             qfunc_secondary_.SetRandom(random_device, q_init);
         }
 
-	LOG(INFO) << "Initializing particle cluster with " << operator_params_.num_burnin_iterations << " iterations";
+        LOG(INFO) << "Initializing particle cluster with " << operator_params_.num_burnin_iterations
+                  << " iterations";
         UpdateParticleCluster(operator_params_.num_burnin_iterations);
-	LOG(INFO) << "Cluster is initialized";
+        LOG(INFO) << "Cluster is initialized";
     }
 
     void MakeIteration() {
@@ -92,7 +93,7 @@ public:
                 continue;
             }
             for (size_t action_number = 0; action_number < ac_kernel.GetDim(); ++action_number) {
-                qfunc_secondary_.ValueAtIndex(i, action_number) =
+                qfunc_secondary_.ValueAtIndex(i)[action_number] =
                     env_params_.reward_function(cluster[i], action_number);
             }
             for (size_t j = 0; j < cluster.size(); ++j) {
@@ -100,7 +101,7 @@ public:
                      ++action_number) {
                     size_t reaction = policy.React(j);
                     FloatT stationary_density = density_estimator_->GetCluster().GetWeights()[j];
-		    // Do I really need these lines?
+                    // Do I really need these lines?
                     if (stationary_density < operator_params_.invariant_density_threshold) {
                         continue;
                     }
@@ -109,21 +110,21 @@ public:
                                               stationary_density;
 
                     LOG(INFO) << weighted_density << " " << stationary_density << " "
-		    << qfunc_primary_.ValueAtIndex(j, reaction) << " "
-		    << additional_weights_[i][action_number];
+                              << qfunc_primary_.ValueAtIndex(j)[reaction] << " "
+                              << additional_weights_[i][action_number];
 
-		    if (qfunc_primary_.ValueAtIndex(j, reaction) > 1e6) {
-			LOG(INFO) << "Bad qfunc value, terminating";
-			std::terminate();
-		    }
+                    if (qfunc_primary_.ValueAtIndex(j)[reaction] > 1e6) {
+                        LOG(INFO) << "Bad qfunc value, terminating";
+                        std::terminate();
+                    }
 
                     if (weighted_density > operator_params_.density_ratio_threshold) {
                         continue;
                     }
 
-                    qfunc_secondary_.ValueAtIndex(i, action_number) +=
+                    qfunc_secondary_.ValueAtIndex(i)[action_number] +=
                         env_params_.kGamma * weighted_density *
-                        qfunc_primary_.ValueAtIndex(j, reaction) *
+                        qfunc_primary_.ValueAtIndex(j)[reaction] *
                         additional_weights_[i][action_number] / operator_params_.num_particles;
                 }
             }
@@ -176,7 +177,7 @@ private:
             for (size_t state_ix = 0; state_ix < operator_params_.num_particles; ++state_ix) {
                 for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim();
                      ++action_num) {
-                    new_estimate.ValueAtIndex(state_ix, action_num) =
+                    new_estimate.ValueAtIndex(state_ix)[action_num] =
                         new_particles_estimator.ValueAtPoint(invariant_distr[state_ix], action_num);
                 }
             }

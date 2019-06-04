@@ -47,12 +47,12 @@ public:
     friend std::ostream& operator<<(std::ostream&, const DiscreteQFuncEst&);
 
 private:
-    FloatT& ValueAtIndexImpl(size_t state_ix, size_t action_number) {
-        return values_[state_ix * dim_ + action_number];
+    ConstMemoryView ValueAtIndexImpl(size_t state_ix) const {
+        return {&values_[state_ix * dim_], dim_};
     }
 
-    FloatT ValueAtIndexImpl(size_t state_ix, size_t action_number) const {
-        return values_[state_ix * dim_ + action_number];
+    MemoryView ValueAtIndexImpl(size_t state_ix) {
+        return {&values_[state_ix * dim_], dim_};
     }
 
 protected:
@@ -63,11 +63,7 @@ protected:
 
 std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
     for (size_t i = 0; i < est.values_.size() / est.NumActions(); ++i) {
-        stream << "{";
-        for (size_t action_number = 0; action_number < est.NumActions(); ++action_number) {
-            stream << est.ValueAtIndex(i, action_number) << ", ";
-        }
-        stream << "} ";
+        stream << est.ValueAtIndex(i);
         if (est.particle_cluster_) {
             assert(i < est.particle_cluster_.value().size());
             stream << est.particle_cluster_.value()[i];
@@ -112,19 +108,28 @@ private:
             result +=
                 env_params_.kGamma *
                 env_params_.ac_kernel.GetTransDensityConditionally(state, next_state, action) *
-                this->ValueAtIndex(next_state_index, next_state_reaction) *
+                this->ValueAtIndex(next_state_index)[next_state_reaction] *
                 importance_func_(next_state_index) / discrete_est_.GetParticleCluster().size();
         }
 
         return result;
     }
 
-    FloatT ValueAtIndexImpl(size_t index, size_t action) const {
-        return discrete_est_.ValueAtIndex(index, action);
+    template <class S>
+    Particle<ParticleStorage> ValueAtPointImpl(const Particle<S>& state) const {
+        Particle<ParticleStorage> result{EmptyInitializer<ParticleStorage>{NumActions()}};
+        for (size_t i = 0; i < NumActions(); ++i) {
+            result[i] = ValueAtPointImpl(state, i);
+        }
+        return result;
     }
 
-    FloatT& ValueAtIndexImpl(size_t index, size_t action) {
-        return discrete_est_.ValueAtIndex(index, action);
+    ConstMemoryView ValueAtIndexImpl(size_t index) const {
+        return discrete_est_.ValueAtIndex(index);
+    }
+
+    MemoryView ValueAtIndexImpl(size_t index) {
+        return discrete_est_.ValueAtIndex(index);
     }
 
     EnvParams<RewardFuncT, T...> env_params_;

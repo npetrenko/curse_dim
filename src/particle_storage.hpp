@@ -40,18 +40,17 @@ private:
     finT data_;
 };
 
-class MemoryView {
+template <bool is_const>
+class MemoryViewTemplate {
 public:
-    using iterator = ContiguousIterator<FloatT, false>;
+    using iterator = ContiguousIterator<FloatT, is_const>;
+    using DataPtrT = typename iterator::finT;
+    using ReferenceT = typename iterator::retT;
 
-    MemoryView(FloatT* data, size_t size) noexcept : data_(data), size_(size) {
+    MemoryViewTemplate(DataPtrT data, size_t size) noexcept : data_(data), size_(size) {
     }
 
-    inline FloatT& operator[](size_t pos) {
-        return data_[pos];
-    }
-
-    inline FloatT operator[](size_t pos) const {
+    inline ReferenceT operator[](size_t pos) const {
         return data_[pos];
     }
 
@@ -67,13 +66,21 @@ public:
         return {data_ + size_};
     }
 
-    FloatT* GetDataPtr() const {
-	return data_;
+    DataPtrT GetDataPtr() const {
+        return data_;
     }
 
 private:
-    FloatT* data_;
+    DataPtrT data_;
     size_t size_;
+};
+
+class MemoryView : public MemoryViewTemplate<false> {
+    using MemoryViewTemplate<false>::MemoryViewTemplate;
+};
+
+class ConstMemoryView : public MemoryViewTemplate<true> {
+    using MemoryViewTemplate<true>::MemoryViewTemplate;
 };
 
 class ParticleStorage : private std::vector<FloatT> {
@@ -132,7 +139,7 @@ public:
     }
 
     inline size_t GetCurrentSize() const {
-	return current_pos_;
+        return current_pos_;
     }
 
 private:

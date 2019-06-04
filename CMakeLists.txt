@@ -23,14 +23,17 @@ message(STATUS "jemalloc-libs: ${JEMALLOC_LIBS}, jemalloc-libdir: ${JEMALLOC_LIB
 
 set(SRC_DIR "src")
 set(TEST_DIR "tests")
+set(CPP_DIR "cpp")
+set(MAIN_DIR "main")
 
-add_executable(main "${SRC_DIR}/main.cpp")
-target_include_directories(main PUBLIC .)
-target_link_libraries(main glog::glog)
-target_link_options(main PUBLIC -L${JEMALLOC_LIBDIR} -Wl,-rpath,${JEMALLOC_LIBDIR} -ljemalloc "${JEMALLOC_LIBS}")
+add_library(bellman "${CPP_DIR}/particle.cpp")
+target_include_directories(bellman PUBLIC .)
+target_link_libraries(bellman glog::glog)
+target_link_options(bellman PUBLIC -L${JEMALLOC_LIBDIR} -Wl,-rpath,${JEMALLOC_LIBDIR} -ljemalloc "${JEMALLOC_LIBS}")
 
-add_executable(tests "${TEST_DIR}/tests.cpp")
-target_include_directories(tests PUBLIC .)
-target_link_libraries(tests gtest_main gtest glog::glog)
-
+add_executable(tests "${TEST_DIR}/bellman.cpp" "${TEST_DIR}/storage.cpp")
+target_link_libraries(tests bellman gtest_main gtest glog::glog)
 add_test(tests tests)
+
+add_executable(main "${MAIN_DIR}/main.cpp")
+target_link_libraries(main bellman)

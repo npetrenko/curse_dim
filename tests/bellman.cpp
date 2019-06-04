@@ -211,7 +211,7 @@ TEST(StationaryEstim, SimpleModel) {
     ASSERT_TRUE(density < 0.5 + 0.1);
 }
 
-TEST(UniformBellman, SimpleModel) {
+TEST(DISABLED_UniformBellman, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
@@ -231,16 +231,14 @@ TEST(UniformBellman, SimpleModel) {
 
     Particle state{ZeroInitializer(1)};
     for (int i = 0; i < 200; ++i) {
-	// std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
-	// << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
-	// << "\n";
+        // std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
         mdp_kernel.Evolve(state, &state);
     }
 
     ASSERT_TRUE(state[0]);
 }
 
-TEST(StationaryBellmanOperator, SimpleModel) {
+TEST(DISABLED_StationaryBellmanOperator, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
@@ -266,9 +264,7 @@ TEST(StationaryBellmanOperator, SimpleModel) {
 
     Particle state{ZeroInitializer(1)};
     for (int i = 0; i < 50; ++i) {
-        std::cout << state << " " << qfunc_est.ValueAtPoint(state, 0) << " "
-                  << qfunc_est.ValueAtPoint(state, 1) << " " << qfunc_est.ValueAtPoint(state, 2)
-                  << "\n";
+        std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
         mdp_kernel.Evolve(state, &state);
     }
 
