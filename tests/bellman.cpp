@@ -218,7 +218,7 @@ TEST(DISABLED_UniformBellman, SimpleModel) {
 
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    UniformBellmanOperator bellman_op{env_params, 256, 1., &rd};
+    UniformBellmanOperator bellman_op{env_params, 512, 1., &rd};
     for (int i = 0; i < 20; ++i) {
         bellman_op.MakeIteration();
     }
@@ -229,44 +229,44 @@ TEST(DISABLED_UniformBellman, SimpleModel) {
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
-    Particle state{ZeroInitializer(1)};
-    for (int i = 0; i < 200; ++i) {
-        // std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
-        mdp_kernel.Evolve(state, &state);
+    for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
+	std::cout << "\n///////////////////////////////////////////" << "\n";
+        Particle state{ConstantInitializer(init, 1)};
+        for (int i = 0; i < 10; ++i) {
+            std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
+            mdp_kernel.Evolve(state, &state);
+        }
+        ASSERT_TRUE(state[0]);
     }
-
-    ASSERT_TRUE(state[0]);
 }
 
-TEST(DISABLED_StationaryBellmanOperator, SimpleModel) {
+TEST(StationaryBellmanOperator, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    StationaryBellmanOperatorParams operator_params{512 /*num_samples*/,
-                                                    100. /*density threshold*/,
-                                                    1. /*radius*/,
-                                                    -1. /*unused-uniform-sampling-ratio*/,
-                                                    1e-3 /*invariant density threshold*/,
-                                                    1 /*burnin iterations*/};
+    StationaryBellmanOperatorParams operator_params{
+        512 /*num_samples*/, 100. /*density ratio threshold*/, 1. /*radius*/,
+        1e-3 /*invariant density threshold*/, 1 /*burnin iterations*/};
     StationaryBellmanOperator bellman_op{env_params, operator_params, &rd};
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 20; ++i) {
         bellman_op.MakeIteration();
     }
 
-    PrevSampleReweighingHelper rew_helper{bellman_op.GetSamplingDistribution()};
+    PrevSampleReweighingHelper rew_helper{bellman_op.GetSamplingDistribution(), std::nullopt};
     QFuncEstForGreedy qfunc_est{env_params, bellman_op.GetQFunc(), rew_helper};
 
-    // std::cout << qfunc_est << "\n";
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
-    Particle state{ZeroInitializer(1)};
-    for (int i = 0; i < 50; ++i) {
-        std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
-        mdp_kernel.Evolve(state, &state);
+    for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
+	std::cout << "\n///////////////////////////////////////////" << "\n";
+        Particle state{ConstantInitializer(init, 1)};
+        for (int i = 0; i < 10; ++i) {
+            std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
+            mdp_kernel.Evolve(state, &state);
+        }
+        ASSERT_TRUE(state[0]);
     }
-
-    ASSERT_TRUE(state[0]);
 }

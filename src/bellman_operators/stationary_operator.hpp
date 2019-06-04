@@ -20,16 +20,16 @@
 struct StationaryBellmanOperatorParams {
     size_t num_particles;
     FloatT density_ratio_threshold, init_radius;
-    FloatT uniform_sampling_ratio;
     FloatT invariant_density_threshold;
     size_t num_burnin_iterations = 10;
 };
 
 struct PrevSampleReweighingHelper {
     const WeightedParticleCluster* prev_sample;
+    std::optional<FloatT> default_density;
     FloatT operator()(size_t sample_index) const {
         if (!prev_sample) {
-            return 1.;
+            return default_density.value();
         }
         FloatT dens = prev_sample->GetWeights()[sample_index];
         if (dens < 1e-2) {
@@ -87,33 +87,33 @@ public:
 
         auto& ac_kernel = env_params_.ac_kernel;
 
-        for (size_t i = 0; i < cluster.size(); ++i) {
-            if (density_estimator_->GetCluster().GetWeights()[i] <
+        for (size_t from_ix = 0; from_ix < operator_params_.num_particles; ++from_ix) {
+            if (density_estimator_->GetCluster().GetWeights()[from_ix] <
                 operator_params_.invariant_density_threshold) {
                 continue;
             }
             for (size_t action_number = 0; action_number < ac_kernel.GetDim(); ++action_number) {
-                qfunc_secondary_.ValueAtIndex(i)[action_number] =
-                    env_params_.reward_function(cluster[i], action_number);
+                qfunc_secondary_.ValueAtIndex(from_ix)[action_number] =
+                    env_params_.reward_function(cluster[from_ix], action_number);
             }
-            for (size_t j = 0; j < cluster.size(); ++j) {
+            for (size_t to_ix = 0; to_ix < operator_params_.num_particles; ++to_ix) {
                 for (size_t action_number = 0; action_number < ac_kernel.GetDim();
                      ++action_number) {
-                    size_t reaction = policy.React(j);
-                    FloatT stationary_density = density_estimator_->GetCluster().GetWeights()[j];
-                    // Do I really need these lines?
+                    FloatT stationary_density =
+                        density_estimator_->GetCluster().GetWeights()[to_ix];
                     if (stationary_density < operator_params_.invariant_density_threshold) {
                         continue;
                     }
+                    size_t reaction = policy.React(to_ix);
                     FloatT weighted_density = ac_kernel.GetTransDensityConditionally(
-                                                  cluster[i], cluster[j], action_number) /
+                                                  cluster[from_ix], cluster[to_ix], action_number) /
                                               stationary_density;
 
-                    LOG(INFO) << weighted_density << " " << stationary_density << " "
-                              << qfunc_primary_.ValueAtIndex(j)[reaction] << " "
-                              << additional_weights_[i][action_number];
+                    // LOG(INFO) << weighted_density << " " << stationary_density << " "
+                    //<< qfunc_primary_.ValueAtIndex(j)[reaction] << " "
+                    //<< additional_weights_[i][action_number];
 
-                    if (qfunc_primary_.ValueAtIndex(j)[reaction] > 1e6) {
+                    if (qfunc_primary_.ValueAtIndex(to_ix)[reaction] > 1e2) {
                         LOG(INFO) << "Bad qfunc value, terminating";
                         std::terminate();
                     }
@@ -122,10 +122,11 @@ public:
                         continue;
                     }
 
-                    qfunc_secondary_.ValueAtIndex(i)[action_number] +=
+                    qfunc_secondary_.ValueAtIndex(from_ix)[action_number] +=
                         env_params_.kGamma * weighted_density *
-                        qfunc_primary_.ValueAtIndex(j)[reaction] *
-                        additional_weights_[i][action_number] / operator_params_.num_particles;
+                        qfunc_primary_.ValueAtIndex(to_ix)[reaction] *
+                        additional_weights_[from_ix][action_number] /
+                        operator_params_.num_particles;
                 }
             }
         }
@@ -150,12 +151,14 @@ private:
 #ifndef NDEBUG
         feenableexcept(FE_INVALID | FE_OVERFLOW);
 #endif
-        PrevSampleReweighingHelper prev_sample_reweighing{prev_sampling_distribution_.get()};
+        PrevSampleReweighingHelper prev_sample_reweighing{
+            prev_sampling_distribution_.get(),
+            1 / pow(2 * operator_params_.init_radius, env_params_.ac_kernel.GetSpaceDim())};
 
-        QFuncEstForGreedy policy_update_estimator{env_params_, qfunc_primary_,
+        QFuncEstForGreedy current_qfunc_estimator{env_params_, qfunc_primary_,
                                                   // should be previous density here
                                                   prev_sample_reweighing};
-        GreedyPolicy policy{policy_update_estimator};
+        GreedyPolicy policy{current_qfunc_estimator};
         MDPKernel mdp_kernel{env_params_.ac_kernel, &policy};
         density_estimator_->ResetKernel(&mdp_kernel);
 
@@ -167,10 +170,6 @@ private:
 
         // Computing qfunction on new sample
         {
-            QFuncEstForGreedy new_particles_estimator{env_params_, qfunc_primary_,
-                                                      // should be the previous density here
-                                                      prev_sample_reweighing};
-
             DiscreteQFuncEst new_estimate{operator_params_.num_particles,
                                           env_params_.ac_kernel.GetDim()};
 
@@ -178,22 +177,37 @@ private:
                 for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim();
                      ++action_num) {
                     new_estimate.ValueAtIndex(state_ix)[action_num] =
-                        new_particles_estimator.ValueAtPoint(invariant_distr[state_ix], action_num);
+                        current_qfunc_estimator.ValueAtPoint(invariant_distr[state_ix], action_num);
                 }
             }
 
-            new_estimate.SetParticleCluster(std::move(qfunc_primary_.GetParticleCluster()));
+            new_estimate.SetParticleCluster(invariant_distr);
             qfunc_primary_ = std::move(new_estimate);
         }
 
-        // Recomputing weights on new sample
+        mdp_kernel.ResetPolicy(nullptr);
+        density_estimator_->ResetKernel(nullptr);
+        prev_sampling_distribution_ = std::make_unique<WeightedParticleCluster>(invariant_distr);
+
+        RecomputeWeights();
+    }
+
+    void RecomputeWeights() {
+        const WeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
         for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim(); ++action_num) {
             for (size_t target_ix = 0; target_ix < operator_params_.num_particles; ++target_ix) {
                 FloatT sum = 0;
-                for (size_t particle_ix = 0; particle_ix < invariant_distr.size(); ++particle_ix) {
+                for (size_t particle_ix = 0; particle_ix < operator_params_.num_particles;
+                     ++particle_ix) {
                     const auto& particle = invariant_distr[particle_ix];
+
+		    // ensure that checks run only once
+                    if (!target_ix && !action_num) {
+                        assert(particle == qfunc_primary_.GetParticleCluster()[particle_ix]);
+                    }
+
                     FloatT pmass = invariant_distr.GetWeights()[particle_ix];
-                    if (pmass < operator_params_.invariant_density_threshold) {
+                    if (pmass == 0) {
                         continue;
                     }
                     sum +=
@@ -203,21 +217,17 @@ private:
                 }
                 additional_weights_[target_ix][action_num] = sum ? (1 / sum) : 0;
 
-                if ((sum > 10) || (!sum && (sum < 0.1))) {
+                if ((sum > 10) || (sum && (sum < 0.1))) {
                     LOG(INFO) << "Strange additional weights: " << 1 / sum;
                     std::terminate();
                 }
             }
         }
-
-        mdp_kernel.ResetPolicy(nullptr);
-        density_estimator_->ResetKernel(nullptr);
-        prev_sampling_distribution_ = std::make_unique<WeightedParticleCluster>(invariant_distr);
     }
 
-    EnvParams<RewardFuncT, T...> env_params_;
-    StationaryBellmanOperatorParams operator_params_;
-    RandomDeviceT* random_device_;
+    const EnvParams<RewardFuncT, T...> env_params_;
+    const StationaryBellmanOperatorParams operator_params_;
+    RandomDeviceT* const random_device_;
     DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
     std::unique_ptr<StationaryDensityEstimator<EstimatorKernelT>> density_estimator_{nullptr};
     std::vector<std::array<FloatT, sizeof...(T)>> additional_weights_;

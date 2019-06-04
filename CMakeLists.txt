@@ -12,15 +12,6 @@ find_package(glog 0.4.0 REQUIRED)
 find_package(GTest REQUIRED)
 enable_testing()
 
-execute_process(COMMAND jemalloc-config --libs
-  OUTPUT_VARIABLE JEMALLOC_LIBS
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND jemalloc-config --libdir
-  OUTPUT_VARIABLE JEMALLOC_LIBDIR
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-string(REPLACE " " ";" JEMALLOC_LIBS ${JEMALLOC_LIBS})
-message(STATUS "jemalloc-libs: ${JEMALLOC_LIBS}, jemalloc-libdir: ${JEMALLOC_LIBDIR}")
-
 set(SRC_DIR "src")
 set(TEST_DIR "tests")
 set(CPP_DIR "cpp")
@@ -29,7 +20,6 @@ set(MAIN_DIR "main")
 add_library(bellman "${CPP_DIR}/particle.cpp")
 target_include_directories(bellman PUBLIC .)
 target_link_libraries(bellman glog::glog)
-target_link_options(bellman PUBLIC -L${JEMALLOC_LIBDIR} -Wl,-rpath,${JEMALLOC_LIBDIR} -ljemalloc "${JEMALLOC_LIBS}")
 
 add_executable(tests "${TEST_DIR}/bellman.cpp" "${TEST_DIR}/storage.cpp")
 target_link_libraries(tests bellman gtest_main gtest glog::glog)

@@ -67,6 +67,9 @@ private:
     using BaseT = AbstractInitializer<EmptyInitializer<StorageT>, StorageT>;
 };
 
+EmptyInitializer(size_t)->EmptyInitializer<ParticleStorage>;
+EmptyInitializer(size_t, ParticleStorage*)->EmptyInitializer<MemoryView>;
+
 template <class OtherContainer>
 class ValueInitializer : public AbstractInitializer<ValueInitializer<MemoryView>, MemoryView> {
 public:

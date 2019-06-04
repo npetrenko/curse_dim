@@ -102,15 +102,21 @@ private:
         GreedyPolicy greedy_policy(*this);
 
         FloatT result = env_params_.reward_function(state, action);
+        FloatT weight_sum = 0;
         for (size_t next_state_index = 0; next_state_index < cluster.size(); ++next_state_index) {
             const Particle<MemoryView>& next_state = cluster[next_state_index];
-            size_t next_state_reaction = greedy_policy.React(next_state_index);
-            result +=
-                env_params_.kGamma *
+            FloatT weight =
                 env_params_.ac_kernel.GetTransDensityConditionally(state, next_state, action) *
-                this->ValueAtIndex(next_state_index)[next_state_reaction] *
-                importance_func_(next_state_index) / discrete_est_.GetParticleCluster().size();
+                importance_func_(next_state_index);
+            weight_sum += weight;
+
+            size_t next_state_reaction = greedy_policy.React(next_state_index);
+
+            result += env_params_.kGamma * weight *
+                      this->ValueAtIndex(next_state_index)[next_state_reaction];
         }
+
+        result /= weight_sum;
 
         return result;
     }
