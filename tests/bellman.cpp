@@ -211,14 +211,14 @@ TEST(StationaryEstim, SimpleModel) {
     ASSERT_TRUE(density < 0.5 + 0.1);
 }
 
-TEST(DISABLED_UniformBellman, SimpleModel) {
+TEST(UniformBellman, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
 
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    UniformBellmanOperator bellman_op{env_params, 512, 1., &rd};
+    UniformBellmanOperator bellman_op{env_params, 1024, 1., &rd};
     for (int i = 0; i < 20; ++i) {
         bellman_op.MakeIteration();
     }
@@ -240,7 +240,7 @@ TEST(DISABLED_UniformBellman, SimpleModel) {
     }
 }
 
-TEST(StationaryBellmanOperator, SimpleModel) {
+TEST(DISABLED_StationaryBellmanOperator, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
