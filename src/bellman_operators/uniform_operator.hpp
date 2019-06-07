@@ -91,7 +91,7 @@ private:
         auto& cluster = qfunc_primary_.GetParticleCluster();
         for (size_t action_number = 0; action_number < env_params_.ac_kernel.GetDim();
              ++action_number) {
-            for (size_t i = 0; i < cluster.size(); ++i) {
+            ParallelFor{0, cluster.size(), 1}([&](size_t i) {
                 FloatT sum = 0;
                 for (size_t j = 0; j < cluster.size(); ++j) {
                     sum += env_params_.ac_kernel.GetTransDensityConditionally(
@@ -101,7 +101,7 @@ private:
                 // Importance sampling correction is also included into sum, so it may be not
                 // close to 1
                 additional_weights_[i][action_number] = 1 / sum;
-            }
+            });
         }
     }
 
