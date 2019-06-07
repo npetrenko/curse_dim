@@ -6,6 +6,8 @@
 
 #include <optional>
 
+#include <thread_pool/include/for_loop.hpp>
+
 class DiscreteQFuncEst : public AbstractQFuncEstimate<DiscreteQFuncEst> {
     friend class AbstractQFuncEstimate<DiscreteQFuncEst>;
 

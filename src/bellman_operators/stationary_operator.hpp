@@ -17,6 +17,8 @@
 #include <fenv.h>
 #endif
 
+#include <thread_pool/include/for_loop.hpp>
+
 struct StationaryBellmanOperatorParams {
     size_t num_particles;
     FloatT density_ratio_threshold, init_radius;
@@ -87,10 +89,10 @@ public:
 
         auto& ac_kernel = env_params_.ac_kernel;
 
-        for (size_t from_ix = 0; from_ix < operator_params_.num_particles; ++from_ix) {
+        ParallelFor{0, operator_params_.num_particles, 1}([&](size_t from_ix) {
             if (density_estimator_->GetCluster().GetWeights()[from_ix] <
                 operator_params_.invariant_density_threshold) {
-                continue;
+                return;
             }
             for (size_t action_number = 0; action_number < ac_kernel.GetDim(); ++action_number) {
                 qfunc_secondary_.ValueAtIndex(from_ix)[action_number] =
@@ -129,7 +131,7 @@ public:
                         operator_params_.num_particles;
                 }
             }
-        }
+        });
 
         std::swap(qfunc_primary_, qfunc_secondary_);
     }
@@ -163,7 +165,8 @@ private:
         density_estimator_->ResetKernel(&mdp_kernel);
 
         LOG(INFO) << "Making stationary iterations";
-        density_estimator_->MakeIteration(num_iterations);
+        density_estimator_->template MakeIteration<true, RandomDeviceT>(num_iterations,
+                                                                        random_device_);
         LOG(INFO) << "Finished";
 
         const WeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
@@ -173,13 +176,13 @@ private:
             DiscreteQFuncEst new_estimate{operator_params_.num_particles,
                                           env_params_.ac_kernel.GetDim()};
 
-            for (size_t state_ix = 0; state_ix < operator_params_.num_particles; ++state_ix) {
+            ParallelFor{0, operator_params_.num_particles, 1}([&](size_t state_ix) {
                 for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim();
                      ++action_num) {
                     new_estimate.ValueAtIndex(state_ix)[action_num] =
                         current_qfunc_estimator.ValueAtPoint(invariant_distr[state_ix], action_num);
                 }
-            }
+            });
 
             new_estimate.SetParticleCluster(invariant_distr);
             qfunc_primary_ = std::move(new_estimate);
@@ -201,7 +204,7 @@ private:
                      ++particle_ix) {
                     const auto& particle = invariant_distr[particle_ix];
 
-		    // ensure that checks run only once
+                    // ensure that checks run only once
                     if (!target_ix && !action_num) {
                         assert(particle == qfunc_primary_.GetParticleCluster()[particle_ix]);
                     }

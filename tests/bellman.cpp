@@ -13,9 +13,11 @@
 
 template <int step>
 class DetermKernel : public AbstractKernel<DetermKernel<step>> {
-public:
+    friend class AbstractKernel<DetermKernel<step>>;
+
+private:
     template <class S1, class S2>
-    inline void Evolve(const Particle<S1>& from, Particle<S2>* to) const {
+    inline void EvolveImpl(const Particle<S1>& from, Particle<S2>* to) const {
         for (size_t i = 0; i < from.GetDim(); ++i) {
             (*to)[i] = from[i] + step;
         }
@@ -48,12 +50,15 @@ TEST(Basic, DeterministicKernelWorks) {
 }
 
 class ARKernel : public AbstractKernel<ARKernel> {
+    friend class AbstractKernel<ARKernel>;
+
 public:
-    ARKernel(std::mt19937* random_device) : rd_(random_device), tmp_storage_{1024} {
+    ARKernel(std::mt19937* random_device) : rd_(random_device) {
     }
 
+private:
     template <class S1, class S2>
-    inline void Evolve(const Particle<S1>& from, Particle<S2>* to) {
+    inline void EvolveImpl(const Particle<S1>& from, Particle<S2>* to) const {
         std::normal_distribution<FloatT> normal{0., 1.};
 
         for (size_t i = 0; i < from.GetDim(); ++i) {
@@ -62,7 +67,9 @@ public:
     }
 
     template <class S1, class S2>
-    inline FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) {
+    inline FloatT GetTransDensityImpl(const Particle<S1>& from, const Particle<S2>& to) const {
+        thread_local ParticleStorage tmp_storage_{1024};
+
         Particle<MemoryView> res{ValueInitializer{from, &tmp_storage_}};
         // Particle<ParticleStorage> res{from};
         res *= -0.5;
@@ -73,9 +80,7 @@ public:
         return result;
     }
 
-private:
     std::mt19937* rd_;
-    ParticleStorage tmp_storage_;
 };
 
 namespace SimpleModel {
@@ -83,20 +88,33 @@ static const FloatT kActionDelta = 0.07;
 
 template <int direction>
 class Kernel : public AbstractKernel<Kernel<direction>> {
+    friend class AbstractKernel<Kernel<direction>>;
+
 public:
     Kernel(std::mt19937* random_device) noexcept : rd_(random_device) {
     }
 
-    template <class S1, class S2>
-    void Evolve(const Particle<S1>& from, Particle<S2>* to) const {
+    inline size_t GetSpaceDim() const {
+        return 1;
+    }
+
+private:
+    template <class S1, class S2, class RandomDeviceT = NullType>
+    void EvolveImpl(const Particle<S1>& from, Particle<S2>* to,
+                    RandomDeviceT* new_random_device = nullptr) const {
         auto [travel_down, travel_up] = MaxAllowedTravelDists(from);
         std::uniform_real_distribution<FloatT> delta{travel_down, travel_up};
 
-        (*to)[0] = delta(*rd_);
+        (void)new_random_device;
+        if constexpr (std::is_same_v<NullType, RandomDeviceT>) {
+            (*to)[0] = delta(*rd_);
+        } else {
+            (*to)[0] = delta(*new_random_device);
+        }
     }
 
     template <class S1, class S2>
-    FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
+    FloatT GetTransDensityImpl(const Particle<S1>& from, const Particle<S2>& to) const {
         auto [travel_down, travel_up] = MaxAllowedTravelDists(from);
         if (to[0] > travel_up || to[0] < travel_down) {
             return 0;
@@ -105,11 +123,6 @@ public:
         }
     }
 
-    inline size_t GetSpaceDim() const {
-        return 1;
-    }
-
-private:
     template <class S1>
     std::pair<FloatT, FloatT> MaxAllowedTravelDists(const Particle<S1>& from) const {
         auto truncate = [](FloatT val) { return std::max(-1., std::min(val, 1.)); };
@@ -230,7 +243,8 @@ TEST(UniformBellman, SimpleModel) {
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
     for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
-	std::cout << "\n///////////////////////////////////////////" << "\n";
+        std::cout << "\n///////////////////////////////////////////"
+                  << "\n";
         Particle state{ConstantInitializer(init, 1)};
         for (int i = 0; i < 10; ++i) {
             std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
@@ -240,7 +254,7 @@ TEST(UniformBellman, SimpleModel) {
     }
 }
 
-TEST(DISABLED_StationaryBellmanOperator, SimpleModel) {
+TEST(StationaryBellmanOperator, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
@@ -261,7 +275,8 @@ TEST(DISABLED_StationaryBellmanOperator, SimpleModel) {
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
     for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
-	std::cout << "\n///////////////////////////////////////////" << "\n";
+        std::cout << "\n///////////////////////////////////////////"
+                  << "\n";
         Particle state{ConstantInitializer(init, 1)};
         for (int i = 0; i < 10; ++i) {
             std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
