@@ -17,6 +17,8 @@
 #include <fenv.h>
 #endif
 
+#include <thread_pool/include/for_loop.hpp>
+
 template <class RandomDeviceT, class RewardFuncT, class... T>
 class UniformBellmanOperator {
 public:
@@ -54,7 +56,7 @@ public:
 
         auto& ac_kernel = env_params_.ac_kernel;
 
-        for (size_t i = 0; i < cluster.size(); ++i) {
+        ParallelFor{0, cluster.size(), 32}([&](size_t i) {
             for (size_t action_number = 0; action_number < ac_kernel.GetDim(); ++action_number) {
                 qfunc_secondary_.ValueAtIndex(i)[action_number] =
                     env_params_.reward_function(cluster[i], action_number);
@@ -70,7 +72,7 @@ public:
                         additional_weights_[i][action_number] / cluster.size();
                 }
             }
-        }
+        });
 
         std::swap(qfunc_primary_, qfunc_secondary_);
         qfunc_primary_.SetParticleCluster(std::move(qfunc_secondary_.GetParticleCluster()));
