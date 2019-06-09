@@ -51,3 +51,22 @@ protected:
         return static_cast<const DerivedT*>(this);
     }
 };
+
+template <class T>
+class HintableKernel;
+
+template <class T>
+struct IsHintable {
+    template <class DerivedT>
+    static void Helper(const HintableKernel<DerivedT>&);
+
+    template <class TestT, class = decltype(Helper(std::declval<TestT>()))>
+    static std::true_type Tester(TestT val);
+
+    static std::false_type Tester(...);
+
+    static const bool value = std::is_same_v<std::true_type, decltype(Tester(std::declval<T>()))>;
+};
+
+template <class T>
+inline constexpr bool IsHintable_v = IsHintable<T>::value;

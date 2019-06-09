@@ -231,7 +231,7 @@ TEST(UniformBellman, SimpleModel) {
 
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    UniformBellmanOperator bellman_op{env_params, 1024, 1., &rd};
+    UniformBellmanOperator bellman_op{env_params, 2048, 1., &rd};
     for (int i = 0; i < 20; ++i) {
         bellman_op.MakeIteration();
     }
@@ -261,7 +261,7 @@ TEST(StationaryBellmanOperator, SimpleModel) {
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
     StationaryBellmanOperatorParams operator_params{
-        512 /*num_samples*/, 100. /*density ratio threshold*/, 1. /*radius*/,
+        2048 /*num_samples*/, 100. /*density ratio threshold*/, 1. /*radius*/,
         1e-3 /*invariant density threshold*/, 1 /*burnin iterations*/};
     StationaryBellmanOperator bellman_op{env_params, operator_params, &rd};
     for (int i = 0; i < 20; ++i) {

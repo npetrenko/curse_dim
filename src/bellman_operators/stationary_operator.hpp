@@ -165,8 +165,8 @@ private:
         density_estimator_->ResetKernel(&mdp_kernel);
 
         LOG(INFO) << "Making stationary iterations";
-        density_estimator_->template MakeIteration<true, RandomDeviceT>(num_iterations,
-                                                                        random_device_);
+        density_estimator_->template MakeIteration<false, RandomDeviceT>(num_iterations,
+                                                                         random_device_);
         LOG(INFO) << "Finished";
 
         const WeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();

@@ -4,6 +4,7 @@
 #include <src/kernel.hpp>
 #include <src/particle.hpp>
 #include <src/particle_storage.hpp>
+#include <src/util.hpp>
 
 #include <thread_pool/include/for_loop.hpp>
 
@@ -48,12 +49,14 @@ public:
 
         if constexpr (!parallel) {
             (void)local_rd_initializer;
+            LOG(INFO) << "Entering sequential stationary loop";
             for (size_t iter_num = 0; iter_num < num_iterations; ++iter_num) {
                 for (size_t i = 0; i < cluster_.size(); ++i) {
                     kernel_->Evolve(cluster_[i], &secondary_cluster_[i]);
                 }
                 std::swap(static_cast<ParticleCluster&>(cluster_), secondary_cluster_);
             }
+            LOG(INFO) << "Finished sequential stationary loop";
         } else {
             std::vector<RandomDeviceT> rds;
             rds.reserve(cluster_.size());
@@ -103,13 +106,42 @@ public:
 
 private:
     void MakeWeighing() {
+        if constexpr (IsHintable_v<T>) {
+            MakeWeighingHintable(static_cast<T&>(*kernel_));
+        } else {
+            MakeWeighingUsual();
+        }
+    }
+
+    void MakeWeighingUsual() {
         ParallelFor{0, cluster_.size(), 1}([&](size_t i) {
-            auto& particle = cluster_[i];
+            const auto& particle = cluster_[i];
             FloatT& particle_weight = cluster_.GetWeights()[i];
             particle_weight = 0;
             for (const auto& from_particle : cluster_) {
                 particle_weight +=
                     kernel_->GetTransDensity(from_particle, particle) / cluster_.size();
+            }
+        });
+    }
+
+    template <class DerivedT>
+    void MakeWeighingHintable(const HintableKernel<DerivedT>& hintable_kernel) {
+        using HintT = decltype(hintable_kernel.CalculateHint(cluster_[0]));
+        std::vector<HintT> hints(cluster_.size());
+        ParallelFor{0, cluster_.size(),
+                    1}([&](size_t i) { hints[i] = hintable_kernel.CalculateHint(cluster_[i]); });
+
+        ParallelFor{0, cluster_.size(), 1}([&](size_t i) {
+            const auto& particle = cluster_[i];
+            FloatT& particle_weight = cluster_.GetWeights()[i];
+            particle_weight = 0;
+            for (size_t from_ix = 0; from_ix < cluster_.size(); ++from_ix) {
+                const auto& from_particle = cluster_[from_ix];
+                HintT* hint = &hints[from_ix];
+                particle_weight +=
+                    hintable_kernel.GetTransDensityWithHint(from_particle, particle, hint) /
+                    cluster_.size();
             }
         });
     }

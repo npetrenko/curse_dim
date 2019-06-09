@@ -135,11 +135,30 @@ private:
     std::tuple<T...> fixed_action_kernels_;
 };
 
+template <class DerivedT>
+class HintableKernel : public AbstractKernel<DerivedT> {
+public:
+    template <class S>
+    auto CalculateHint(const Particle<S>& from) const {
+        return this->GetDerived()->CalculateHintImpl(from);
+    }
+
+    template <class S1, class S2, class HintT>
+    FloatT GetTransDensityWithHint(const Particle<S1>& from, const Particle<S2>& to,
+                                   HintT* hint) const {
+        return this->GetDerived()->GetTransDensityWithHintImpl(from, to, hint);
+    }
+};
+
 template <class DerivedPolicy, class... T>
-class MDPKernel final : public AbstractKernel<MDPKernel<DerivedPolicy, T...>> {
-    friend class AbstractKernel<MDPKernel<DerivedPolicy, T...>>;
+class MDPKernel final : public HintableKernel<MDPKernel<DerivedPolicy, T...>> {
+    using ThisT = MDPKernel<DerivedPolicy, T...>;
+    friend class HintableKernel<ThisT>;
+    friend class AbstractKernel<ThisT>;
 
 public:
+    using HintT = size_t;
+
     MDPKernel(const ActionConditionedKernel<T...>& action_conditioned_kernel,
               AbstractAgentPolicy<DerivedPolicy>* agent_policy)
         : conditioned_kernel_{action_conditioned_kernel}, agent_policy_{agent_policy} {
@@ -170,6 +189,17 @@ private:
     FloatT GetTransDensityImpl(const Particle<S1>& from, const Particle<S2>& to) const {
         size_t action_num = agent_policy_->React(from);
         return conditioned_kernel_.GetTransDensityConditionally(from, to, action_num);
+    }
+
+    template <class S>
+    HintT CalculateHintImpl(const Particle<S>& from) const {
+        return agent_policy_->React(from);
+    }
+
+    template <class S1, class S2>
+    FloatT GetTransDensityWithHintImpl(const Particle<S1>& from, const Particle<S2>& to,
+                                       HintT* hint) const {
+        return conditioned_kernel_.GetTransDensityConditionally(from, to, *hint);
     }
 
     const ActionConditionedKernel<T...>& conditioned_kernel_;
