@@ -224,7 +224,7 @@ TEST(StationaryEstim, SimpleModel) {
     ASSERT_TRUE(density < 0.5 + 0.1);
 }
 
-TEST(UniformBellman, SimpleModel) {
+TEST(DISABLED_UniformBellman, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};

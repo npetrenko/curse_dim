@@ -89,7 +89,7 @@ public:
 
         auto& ac_kernel = env_params_.ac_kernel;
 
-        ParallelFor{0, operator_params_.num_particles, 1}([&](size_t from_ix) {
+        ParallelFor{0, operator_params_.num_particles, 255}([&](size_t from_ix) {
             if (density_estimator_->GetCluster().GetWeights()[from_ix] <
                 operator_params_.invariant_density_threshold) {
                 return;
@@ -165,8 +165,8 @@ private:
         density_estimator_->ResetKernel(&mdp_kernel);
 
         LOG(INFO) << "Making stationary iterations";
-        density_estimator_->template MakeIteration<false, RandomDeviceT>(num_iterations,
-                                                                         random_device_);
+        density_estimator_->template MakeIteration<true, RandomDeviceT>(num_iterations,
+                                                                        random_device_);
         LOG(INFO) << "Finished";
 
         const WeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
@@ -176,7 +176,7 @@ private:
             DiscreteQFuncEst new_estimate{operator_params_.num_particles,
                                           env_params_.ac_kernel.GetDim()};
 
-            ParallelFor{0, operator_params_.num_particles, 1}([&](size_t state_ix) {
+            ParallelFor{0, operator_params_.num_particles, 255}([&](size_t state_ix) {
                 for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim();
                      ++action_num) {
                     new_estimate.ValueAtIndex(state_ix)[action_num] =
@@ -198,7 +198,7 @@ private:
     void RecomputeWeights() {
         const WeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
         for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim(); ++action_num) {
-            for (size_t target_ix = 0; target_ix < operator_params_.num_particles; ++target_ix) {
+            ParallelFor{0, operator_params_.num_particles, 255}([&](size_t target_ix) {
                 FloatT sum = 0;
                 for (size_t particle_ix = 0; particle_ix < operator_params_.num_particles;
                      ++particle_ix) {
@@ -224,7 +224,7 @@ private:
                     LOG(INFO) << "Strange additional weights: " << 1 / sum;
                     std::terminate();
                 }
-            }
+            });
         }
     }
 
