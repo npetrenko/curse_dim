@@ -5,6 +5,7 @@
 #include <src/particle.hpp>
 #include <src/particle_storage.hpp>
 #include <src/util.hpp>
+#include <src/type_traits.hpp>
 
 #include <thread_pool/include/for_loop.hpp>
 
@@ -29,11 +30,11 @@ private:
     std::vector<FloatT> weights_;
 };
 
-template <class T>
+template <class T, bool HasRNG>
 class StationaryDensityEstimator {
 public:
     template <class S>
-    StationaryDensityEstimator(AbstractKernel<T>* kernel,
+    StationaryDensityEstimator(AbstractKernel<T, HasRNG>* kernel,
                                const AbstractInitializer<S, MemoryView>& initializer,
                                size_t cluster_size)
         : kernel_{kernel},
@@ -100,13 +101,13 @@ public:
         return *kernel_;
     }
 
-    void ResetKernel(AbstractKernel<T>* new_kernel) {
+    void ResetKernel(AbstractKernel<T, HasRNG>* new_kernel) {
         kernel_ = new_kernel;
     }
 
 private:
     void MakeWeighing() {
-        if constexpr (IsHintable_v<T>) {
+        if constexpr (type_traits::IsHintable_v<T>) {
             MakeWeighingHintable(static_cast<T&>(*kernel_));
         } else {
             MakeWeighingUsual();
@@ -146,7 +147,7 @@ private:
         });
     }
 
-    AbstractKernel<T>* kernel_;
+    AbstractKernel<T, HasRNG>* kernel_;
     WeightedParticleCluster cluster_;
     ParticleCluster secondary_cluster_;
 };

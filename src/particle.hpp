@@ -14,6 +14,10 @@ class Particle {
     friend class ParticleCluster;
 
 public:
+    template <bool is_const>
+    Particle(MemoryViewTemplate<is_const> view) : data_{view} {
+    }
+    
     template <class T>
     Particle(const AbstractInitializer<T, StorageT>& initializer);
 
@@ -90,6 +94,9 @@ public:
 private:
     StorageT data_;
 };
+
+template <bool is_const>
+Particle(MemoryViewTemplate<is_const>) -> Particle<MemoryViewTemplate<is_const>>;
 
 class ParticleCluster : private std::vector<Particle<MemoryView>> {
     using ParentT = std::vector<Particle<MemoryView>>;

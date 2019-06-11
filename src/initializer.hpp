@@ -5,6 +5,7 @@
 
 #include <src/types.hpp>
 #include <src/util.hpp>
+#include <src/type_traits.hpp>
 #include <src/particle_storage.hpp>
 
 template <class DerivedT, class StorageT>

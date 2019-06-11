@@ -12,12 +12,12 @@
 #include <random>
 
 template <int step>
-class DetermKernel : public AbstractKernel<DetermKernel<step>> {
-    friend class AbstractKernel<DetermKernel<step>>;
+class DetermKernel : public AbstractKernel<DetermKernel<step>, false> {
+    friend class AbstractKernel<DetermKernel<step>, false>;
 
 private:
-    template <class S1, class S2>
-    inline void EvolveImpl(const Particle<S1>& from, Particle<S2>* to) const {
+    template <class S1, class S2, class RandomDeviceT>
+    inline void EvolveImpl(const Particle<S1>& from, Particle<S2>* to, RandomDeviceT*) const {
         for (size_t i = 0; i < from.GetDim(); ++i) {
             (*to)[i] = from[i] + step;
         }
@@ -38,7 +38,8 @@ private:
 TEST(Basic, DeterministicKernelWorks) {
     ParticleStorage storage{10};
     DummyPolicy policy;
-    MDPKernel kernel{ActionConditionedKernel{DetermKernel<1>(), DetermKernel<2>()}, &policy};
+    auto ac = ActionConditionedKernel{DetermKernel<1>{}, DetermKernel<2>{}};
+    MDPKernel kernel{ac, &policy};
 
     Particle test_particle{ZeroInitializer(8, &storage)};
 
@@ -51,18 +52,19 @@ TEST(Basic, DeterministicKernelWorks) {
 
 class ARKernel : public AbstractKernel<ARKernel> {
     friend class AbstractKernel<ARKernel>;
+    using BaseT = AbstractKernel<ARKernel>;
 
 public:
-    ARKernel(std::mt19937* random_device) : rd_(random_device) {
+    ARKernel(std::mt19937* random_device) : BaseT{random_device} {
     }
 
 private:
-    template <class S1, class S2>
-    inline void EvolveImpl(const Particle<S1>& from, Particle<S2>* to) const {
+    template <class S1, class S2, class RandomDeviceT>
+    inline void EvolveImpl(const Particle<S1>& from, Particle<S2>* to, RandomDeviceT* rd) const {
         std::normal_distribution<FloatT> normal{0., 1.};
 
         for (size_t i = 0; i < from.GetDim(); ++i) {
-            (*to)[i] = 0.5 * from[i] + normal(*rd_);
+            (*to)[i] = 0.5 * from[i] + normal(*rd);
         }
     }
 
@@ -79,8 +81,6 @@ private:
         tmp_storage_.Clear();
         return result;
     }
-
-    std::mt19937* rd_;
 };
 
 namespace SimpleModel {
@@ -89,9 +89,10 @@ static const FloatT kActionDelta = 0.07;
 template <int direction>
 class Kernel : public AbstractKernel<Kernel<direction>> {
     friend class AbstractKernel<Kernel<direction>>;
+    using BaseT = AbstractKernel<Kernel<direction>>;
 
 public:
-    Kernel(std::mt19937* random_device) noexcept : rd_(random_device) {
+    Kernel(std::mt19937* random_device) noexcept : BaseT{random_device} {
     }
 
     inline size_t GetSpaceDim() const {
@@ -99,18 +100,13 @@ public:
     }
 
 private:
-    template <class S1, class S2, class RandomDeviceT = NullType>
+    template <class S1, class S2, class RandomDeviceT>
     void EvolveImpl(const Particle<S1>& from, Particle<S2>* to,
-                    RandomDeviceT* new_random_device = nullptr) const {
+                    RandomDeviceT* random_device) const {
         auto [travel_down, travel_up] = MaxAllowedTravelDists(from);
         std::uniform_real_distribution<FloatT> delta{travel_down, travel_up};
 
-        (void)new_random_device;
-        if constexpr (std::is_same_v<NullType, RandomDeviceT>) {
-            (*to)[0] = delta(*rd_);
-        } else {
-            (*to)[0] = delta(*new_random_device);
-        }
+        (*to)[0] = delta(*random_device);
     }
 
     template <class S1, class S2>
@@ -224,7 +220,7 @@ TEST(StationaryEstim, SimpleModel) {
     ASSERT_TRUE(density < 0.5 + 0.1);
 }
 
-TEST(DISABLED_UniformBellman, SimpleModel) {
+TEST(UniformBellman, SimpleModel) {
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
@@ -263,6 +259,7 @@ TEST(StationaryBellmanOperator, SimpleModel) {
     StationaryBellmanOperatorParams operator_params{
         2048 /*num_samples*/, 100. /*density ratio threshold*/, 1. /*radius*/,
         1e-3 /*invariant density threshold*/, 1 /*burnin iterations*/};
+
     StationaryBellmanOperator bellman_op{env_params, operator_params, &rd};
     for (int i = 0; i < 20; ++i) {
         bellman_op.MakeIteration();

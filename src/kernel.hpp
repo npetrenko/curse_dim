@@ -5,74 +5,24 @@
 #include <src/exceptions.hpp>
 #include <src/agent_policy.hpp>
 #include <src/util.hpp>
+#include <src/type_traits.hpp>
+
+#include <src/abstract_kernel.hpp>
 
 #include <array>
 #include <memory>
 #include <exception>
-
-struct NullType {};
-
-template <class DerivedT>
-class AbstractKernel : public CRTPDerivedCaster<DerivedT> {
-public:
-    template <class S1, class S2, class RandomDeviceT = NullType>
-    inline void Evolve(const Particle<S1>& from, Particle<S2>* output,
-                       RandomDeviceT* rd = nullptr) const {
-        (void)rd;
-        assert(from.GetDim() == output->GetDim());
-        if constexpr (std::is_same_v<NullType, RandomDeviceT>) {
-            this->GetDerived()->EvolveImpl(from, output);
-        } else {
-            this->GetDerived()->EvolveImpl(from, output, rd);
-        }
-    }
-
-    template <class S1, class S2>
-    inline FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
-        assert(from.GetDim() == to.GetDim());
-        return this->GetDerived()->GetTransDensityImpl(from, to);
-    }
-
-    inline size_t GetSpaceDim() const {
-        return this->GetDerived()->GetSpaceDim();
-    }
-};
-
-template <class DerivedT>
-class AbstractConditionedKernel : public CRTPDerivedCaster<DerivedT> {
-public:
-    template <class S1, class S2, class RandomDeviceT = NullType>
-    inline void EvolveConditionally(const Particle<S1>& from, Particle<S2>* output,
-                                    size_t condition, RandomDeviceT* rd = nullptr) const {
-        (void)rd;
-        if constexpr (std::is_same_v<NullType, RandomDeviceT>) {
-            this->GetDerived()->EvolveConditionallyImpl(from, output, condition);
-        } else {
-            this->GetDerived()->EvolveConditionallyImpl(from, output, condition, rd);
-        }
-    }
-
-    template <class S1, class S2>
-    inline FloatT GetTransDensityConditionally(const Particle<S1>& from, const Particle<S2>& to,
-                                               size_t condition) const {
-        return this->GetDerived()->GetTransDensityConditionallyImpl(from, to, condition);
-    }
-
-    inline size_t GetSpaceDim() const {
-        return this->GetDerived()->GetSpaceDim();
-    }
-};
+#include <functional>
 
 template <class... T>
 class ActionConditionedKernel final
-    : public AbstractConditionedKernel<ActionConditionedKernel<T...>> {
-    friend class AbstractConditionedKernel<ActionConditionedKernel<T...>>;
+    : public AbstractConditionedKernel<ActionConditionedKernel<T...>, false> {
+    friend class AbstractConditionedKernel<ActionConditionedKernel<T...>, false>;
 
 public:
-    ActionConditionedKernel(T&&... args) : fixed_action_kernels_(std::move(args)...) {
+    ActionConditionedKernel(T&&... args) : fixed_action_kernels_{std::move(args)...} {
     }
-
-    ActionConditionedKernel(const T&... args) : fixed_action_kernels_(args...) {
+    ActionConditionedKernel(const T&... args) : fixed_action_kernels_{args...} {
     }
 
     inline size_t GetSpaceDim() const {
@@ -88,9 +38,9 @@ public:
     }
 
 private:
-    template <class S1, class S2, class RandomDeviceT = NullType>
+    template <class S1, class S2, class RandomDeviceT>
     void EvolveConditionallyImpl(const Particle<S1>& from, Particle<S2>* output,
-                                 size_t action_number, RandomDeviceT* rd = nullptr) const {
+                                 size_t action_number, RandomDeviceT* rd) const {
         EvolveHelper<S1, S2, RandomDeviceT> helper{from, output, rd};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
     }
@@ -136,32 +86,40 @@ private:
 };
 
 template <class DerivedT>
-class HintableKernel : public AbstractKernel<DerivedT> {
+class HintableKernel : public AbstractKernel<DerivedT, false> {
+    using Caster = CRTPDerivedCaster<DerivedT>;
+
 public:
+    HintableKernel() = default;
+
+    HintableKernel(std::mt19937* rd) : AbstractKernel<DerivedT, false>{rd} {
+    }
+
     template <class S>
     auto CalculateHint(const Particle<S>& from) const {
-        return this->GetDerived()->CalculateHintImpl(from);
+        return Caster::GetDerived()->CalculateHintImpl(from);
     }
 
     template <class S1, class S2, class HintT>
     FloatT GetTransDensityWithHint(const Particle<S1>& from, const Particle<S2>& to,
                                    HintT* hint) const {
-        return this->GetDerived()->GetTransDensityWithHintImpl(from, to, hint);
+        return Caster::GetDerived()->GetTransDensityWithHintImpl(from, to, hint);
     }
 };
 
-template <class DerivedPolicy, class... T>
-class MDPKernel final : public HintableKernel<MDPKernel<DerivedPolicy, T...>> {
-    using ThisT = MDPKernel<DerivedPolicy, T...>;
+template <class DerivedPolicy, class T>
+class MDPKernel final : public HintableKernel<MDPKernel<DerivedPolicy, T>> {
+    using ThisT = MDPKernel<DerivedPolicy, T>;
     friend class HintableKernel<ThisT>;
-    friend class AbstractKernel<ThisT>;
+    friend class AbstractKernel<ThisT, false>;
 
 public:
     using HintT = size_t;
 
-    MDPKernel(const ActionConditionedKernel<T...>& action_conditioned_kernel,
+    MDPKernel(const AbstractConditionedKernel<T, false>& action_conditioned_kernel,
               AbstractAgentPolicy<DerivedPolicy>* agent_policy)
-        : conditioned_kernel_{action_conditioned_kernel}, agent_policy_{agent_policy} {
+        : conditioned_kernel_{type_traits::GetDeepestLevelCopy(action_conditioned_kernel)},
+          agent_policy_{agent_policy} {
     }
 
     inline void ResetPolicy(AbstractAgentPolicy<DerivedPolicy>* agent_policy) {
@@ -173,16 +131,10 @@ public:
     }
 
 private:
-    template <class S1, class S2, class RandomDeviceT = NullType>
-    void EvolveImpl(const Particle<S1>& from, Particle<S2>* output,
-                    RandomDeviceT* rd = nullptr) const {
-        (void)rd;
+    template <class S1, class S2, class RandomDeviceT>
+    void EvolveImpl(const Particle<S1>& from, Particle<S2>* output, RandomDeviceT* rd) const {
         size_t action_num = agent_policy_->React(from);
-        if constexpr (std::is_same_v<RandomDeviceT, NullType>) {
-            conditioned_kernel_.EvolveConditionally(from, output, action_num);
-        } else {
-            conditioned_kernel_.EvolveConditionally(from, output, action_num, rd);
-        }
+        conditioned_kernel_.EvolveConditionally(from, output, action_num, rd);
     }
 
     template <class S1, class S2>
@@ -202,6 +154,6 @@ private:
         return conditioned_kernel_.GetTransDensityConditionally(from, to, *hint);
     }
 
-    const ActionConditionedKernel<T...>& conditioned_kernel_;
+    type_traits::DeepestCRTPType<AbstractConditionedKernel<T, false>> conditioned_kernel_;
     AbstractAgentPolicy<DerivedPolicy>* agent_policy_{nullptr};
 };
