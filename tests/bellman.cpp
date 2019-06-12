@@ -12,8 +12,8 @@
 #include <random>
 
 template <int step>
-class DetermKernel : public AbstractKernel<DetermKernel<step>, false> {
-    friend class AbstractKernel<DetermKernel<step>, false>;
+class DetermKernel : public AbstractKernel<DetermKernel<step>, std::false_type> {
+    friend class AbstractKernel<DetermKernel<step>, std::false_type>;
 
 private:
     template <class S1, class S2, class RandomDeviceT>
@@ -35,11 +35,43 @@ private:
     size_t step = 0;
 };
 
+TEST(Basic, AbstractKernelWorks) {
+    ParticleStorage storage {1024};
+    DetermKernel<1> kernel {};
+
+    Particle test_particle{ZeroInitializer(8, &storage)};
+
+    kernel.Evolve(test_particle, &test_particle);
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(1., 8)});
+
+    kernel.Evolve(test_particle, &test_particle);
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(2., 8)});
+}
+
+TEST(Basic, ActionConditionedKernelWorks) {
+    ParticleStorage storage {1024};
+    ActionConditionedKernel kernel{DetermKernel<1>{}, DetermKernel<2>{}};
+
+    Particle test_particle{ZeroInitializer(8, &storage)};
+
+    kernel.EvolveConditionally(test_particle, &test_particle, 0);
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(1., 8)});
+
+    kernel.EvolveConditionally(test_particle, &test_particle, 1);
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(3., 8)});
+}
+
 TEST(Basic, DeterministicKernelWorks) {
-    ParticleStorage storage{10};
+    ParticleStorage storage {1024};
     DummyPolicy policy;
-    auto ac = ActionConditionedKernel{DetermKernel<1>{}, DetermKernel<2>{}};
-    MDPKernel kernel{ac, &policy};
+    ActionConditionedKernel ac_kernel {DetermKernel<1>{}, DetermKernel<2>{}};
+    /*
+    static_assert(
+        std::is_same_v<
+            type_traits::DeepestCRTPType<AbstractConditionedKernel<decltype(ac_kernel), false>>,
+            decltype(ac_kernel)>);
+    */
+    MDPKernel kernel{ActionConditionedKernel{DetermKernel<1>{}, DetermKernel<2>{}}, &policy};
 
     Particle test_particle{ZeroInitializer(8, &storage)};
 

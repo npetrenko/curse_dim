@@ -24,7 +24,7 @@ add_library(bellman "${CPP_DIR}/particle.cpp")
 target_include_directories(bellman PUBLIC .)
 target_link_libraries(bellman glog::glog thread_pool)
 
-add_executable(tests "${TEST_DIR}/bellman.cpp" "${TEST_DIR}/storage.cpp")
+add_executable(tests "${TEST_DIR}/bellman.cpp" "${TEST_DIR}/storage.cpp" "${TEST_DIR}/type_traits.cpp")
 target_link_libraries(tests bellman gtest_main gtest glog::glog)
 add_test(tests tests)
 

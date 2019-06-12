@@ -16,8 +16,8 @@
 
 template <class... T>
 class ActionConditionedKernel final
-    : public AbstractConditionedKernel<ActionConditionedKernel<T...>, false> {
-    friend class AbstractConditionedKernel<ActionConditionedKernel<T...>, false>;
+    : public AbstractConditionedKernel<ActionConditionedKernel<T...>, std::false_type> {
+    friend class AbstractConditionedKernel<ActionConditionedKernel<T...>, std::false_type>;
 
 public:
     ActionConditionedKernel(T&&... args) : fixed_action_kernels_{std::move(args)...} {
@@ -86,13 +86,13 @@ private:
 };
 
 template <class DerivedT>
-class HintableKernel : public AbstractKernel<DerivedT, false> {
+class HintableKernel : public AbstractKernel<DerivedT, std::false_type> {
     using Caster = CRTPDerivedCaster<DerivedT>;
 
 public:
     HintableKernel() = default;
 
-    HintableKernel(std::mt19937* rd) : AbstractKernel<DerivedT, false>{rd} {
+    HintableKernel(std::mt19937* rd) : AbstractKernel<DerivedT, std::false_type>{rd} {
     }
 
     template <class S>
@@ -111,12 +111,12 @@ template <class DerivedPolicy, class T>
 class MDPKernel final : public HintableKernel<MDPKernel<DerivedPolicy, T>> {
     using ThisT = MDPKernel<DerivedPolicy, T>;
     friend class HintableKernel<ThisT>;
-    friend class AbstractKernel<ThisT, false>;
+    friend class AbstractKernel<ThisT, std::false_type>;
 
 public:
     using HintT = size_t;
 
-    MDPKernel(const AbstractConditionedKernel<T, false>& action_conditioned_kernel,
+    MDPKernel(const AbstractConditionedKernel<T, std::false_type>& action_conditioned_kernel,
               AbstractAgentPolicy<DerivedPolicy>* agent_policy)
         : conditioned_kernel_{type_traits::GetDeepestLevelCopy(action_conditioned_kernel)},
           agent_policy_{agent_policy} {
@@ -154,6 +154,6 @@ private:
         return conditioned_kernel_.GetTransDensityConditionally(from, to, *hint);
     }
 
-    type_traits::DeepestCRTPType<AbstractConditionedKernel<T, false>> conditioned_kernel_;
+    type_traits::DeepestCRTPType<AbstractConditionedKernel<T, std::false_type>> conditioned_kernel_;
     AbstractAgentPolicy<DerivedPolicy>* agent_policy_{nullptr};
 };

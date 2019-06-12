@@ -30,11 +30,11 @@ private:
     std::vector<FloatT> weights_;
 };
 
-template <class T, bool HasRNG>
+template <class T, class HasRNGTag>
 class StationaryDensityEstimator {
 public:
     template <class S>
-    StationaryDensityEstimator(AbstractKernel<T, HasRNG>* kernel,
+    StationaryDensityEstimator(AbstractKernel<T, HasRNGTag>* kernel,
                                const AbstractInitializer<S, MemoryView>& initializer,
                                size_t cluster_size)
         : kernel_{kernel},
@@ -101,7 +101,7 @@ public:
         return *kernel_;
     }
 
-    void ResetKernel(AbstractKernel<T, HasRNG>* new_kernel) {
+    void ResetKernel(AbstractKernel<T, HasRNGTag>* new_kernel) {
         kernel_ = new_kernel;
     }
 
@@ -147,7 +147,7 @@ private:
         });
     }
 
-    AbstractKernel<T, HasRNG>* kernel_;
+    AbstractKernel<T, HasRNGTag>* kernel_;
     WeightedParticleCluster cluster_;
     ParticleCluster secondary_cluster_;
 };

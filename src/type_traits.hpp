@@ -17,6 +17,9 @@ protected:
     }
 };
 
+template <class T>
+class HintableKernel;
+
 namespace type_traits {
 
 // Find the first type that matches the predicate
@@ -46,7 +49,7 @@ template <template <class...> class DT, class... T>
 struct GetDeepest<DT<T...>> {
     template <class CLS>
     struct Predicate {
-        static const bool value = std::is_base_of<DT<T...>, CLS>::value;
+        static const bool value = std::is_base_of_v<DT<T...>, CLS>;
     };
 
     static const bool HasCRTPDerived = FindFirstMatching<Predicate, T...>::has_match;
@@ -63,21 +66,18 @@ DeepestCRTPType<T> GetDeepestLevelCopy(const T& arg) {
     return static_cast<const DeepestCRTPType<T>&>(arg);
 }
 
-template <class T>
-class HintableKernel;
-
 // Class to find if the class is public derived from HintableKernel<T>
 template <class T>
 struct IsHintable {
     template <class DerivedT>
-    static void Helper(HintableKernel<DerivedT>*);
+    static void Helper(const ::HintableKernel<DerivedT>&);
 
-    template <class TestT, class = decltype(Helper(std::declval<TestT*>()))>
-    static std::true_type Tester(TestT* val);
+    template <class TestT, class = decltype(Helper(std::declval<TestT&>()))>
+    static std::true_type Tester(const TestT& val);
 
     static std::false_type Tester(...);
 
-    static const bool value = std::is_same_v<std::true_type, decltype(Tester(std::declval<T*>()))>;
+    static const bool value = std::is_same_v<std::true_type, decltype(Tester(std::declval<T&>()))>;
 };
 
 template <class T>

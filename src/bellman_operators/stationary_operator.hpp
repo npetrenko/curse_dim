@@ -61,7 +61,7 @@ public:
         RandomVectorizingInitializer<MemoryView, decltype(distr), RandomDeviceT> initializer{
             env_params_.ac_kernel.GetSpaceDim(), random_device, distr};
 
-        density_estimator_ = std::make_unique<StationaryDensityEstimator<EstimatorKernelT, false>>(
+        density_estimator_ = std::make_unique<StationaryDensityEstimator<EstimatorKernelT, std::false_type>>(
             nullptr, initializer, operator_params_.num_particles);
 
         qfunc_primary_.SetParticleCluster(density_estimator_->GetCluster());
@@ -232,7 +232,7 @@ private:
     const StationaryBellmanOperatorParams operator_params_;
     RandomDeviceT* const random_device_;
     DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
-    std::unique_ptr<StationaryDensityEstimator<EstimatorKernelT, false>> density_estimator_{nullptr};
+    std::unique_ptr<StationaryDensityEstimator<EstimatorKernelT, std::false_type>> density_estimator_{nullptr};
     std::vector<std::array<FloatT, sizeof...(T)>> additional_weights_;
     std::unique_ptr<WeightedParticleCluster> prev_sampling_distribution_{nullptr};
 };
