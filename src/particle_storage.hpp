@@ -31,6 +31,10 @@ public:
         return prev;
     }
 
+    inline ContiguousIterator operator+(int64_t val) const {
+        return {data_ + val};
+    }
+
     template <class K, bool ic>
     inline bool operator!=(ContiguousIterator<K, ic> other) {
         return other.data_ != data_;
@@ -44,6 +48,7 @@ template <bool is_const>
 class MemoryViewTemplate {
 public:
     using iterator = ContiguousIterator<FloatT, is_const>;
+    using const_iterator = ContiguousIterator<FloatT, true>;
     using DataPtrT = typename iterator::finT;
     using ReferenceT = typename iterator::retT;
 
@@ -58,11 +63,19 @@ public:
         return size_;
     }
 
-    inline iterator begin() const {
+    inline const_iterator begin() const {
         return {data_};
     }
 
-    inline iterator end() const {
+    inline const_iterator end() const {
+        return {data_ + size_};
+    }
+
+    inline iterator begin() {
+        return {data_};
+    }
+
+    inline iterator end() {
         return {data_ + size_};
     }
 
@@ -77,15 +90,25 @@ private:
 
 class MemoryView : public MemoryViewTemplate<false> {
     using MemoryViewTemplate<false>::MemoryViewTemplate;
+
+public:
+    MemoryView(MemoryViewTemplate<false> origin) : MemoryViewTemplate<false>{origin} {
+    }
 };
 
 class ConstMemoryView : public MemoryViewTemplate<true> {
     using MemoryViewTemplate<true>::MemoryViewTemplate;
+
+public:
+    ConstMemoryView(MemoryViewTemplate<true> origin) : MemoryViewTemplate<true>{origin} {
+    }
 };
 
 class ParticleStorage : private std::vector<FloatT> {
 public:
     using iterator = std::vector<FloatT>::iterator;
+    using const_iterator = std::vector<FloatT>::const_iterator;
+
     ParticleStorage(size_t max_size) {
         std::vector<FloatT>::resize(max_size);
         current_pos_ = 0;

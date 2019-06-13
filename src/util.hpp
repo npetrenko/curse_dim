@@ -38,4 +38,3 @@ template <class Func, class... T>
 inline static void CallOnTupleIx(Func&& cb, const std::tuple<T...>& tup, size_t index) noexcept {
     CallOnTupleIxHelper<Func, 0, T...>(std::forward<Func>(cb), tup, index);
 }
-

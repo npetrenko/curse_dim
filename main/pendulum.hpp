@@ -3,7 +3,6 @@
 #include <src/kernel.hpp>
 
 namespace Pendulum {
-using RandomEngT = std::mt19937;
 const FloatT kActionForce = 1.;
 const FloatT kDeltaTime = 0.1;
 const FloatT kG = 9.8;
@@ -18,7 +17,11 @@ class Kernel1D : public AbstractKernel<Kernel1D<action_direction>> {
     using BaseT = AbstractKernel<Kernel1D<action_direction>>;
 
 public:
-    Kernel1D(RandomEngT* rd) : BaseT{rd} {
+    Kernel1D(std::mt19937* rd) : BaseT{rd} {
+    }
+
+    size_t GetSpaceDim() const {
+        return 2;
     }
 
 private:
@@ -61,7 +64,7 @@ private:
     }
 
     template <class S1>
-    void ChechArgs(const Particle<S1>& particle) {
+    void ChechArgs(const Particle<S1>& particle) const {
         (void)particle;
         assert(particle.GetDim() == 2);
     }
@@ -75,7 +78,11 @@ class Kernel : public AbstractKernel<Kernel<action_direction>, std::false_type> 
     using BaseT = AbstractKernel<Kernel<action_direction>, std::false_type>;
 
 public:
-    Kernel(size_t num_pendulums, RandomEngT* rd) : BaseT{}, pendulums_(num_pendulums, {rd}) {
+    Kernel(size_t num_pendulums, std::mt19937* rd) : BaseT{}, pendulums_(num_pendulums, {rd}) {
+    }
+
+    size_t GetSpaceDim() const {
+        return pendulums_.size() * 2;
     }
 
 private:
@@ -96,8 +103,8 @@ private:
         CheckArgs(to);
         FloatT result = 1.;
         for (size_t pend_ix = 0; pend_ix < pendulums_.size(); ++pend_ix) {
-            Particle<ConstMemoryView> from_p{ConstMemoryView{&from[2 * pend_ix], 2}};
-            Particle<ConstMemoryView> to_p{MemoryView{&to[2 * pend_ix], 2}};
+            Particle<ConstMemoryView> from_p{ConstMemoryView{&*(from.begin() + 2 * pend_ix), 2}};
+            Particle<ConstMemoryView> to_p{ConstMemoryView{&*(to.begin() + 2 * pend_ix), 2}};
             result *= pendulums_[pend_ix].GetTransDensity(from_p, to_p);
         }
         return result;
@@ -110,6 +117,17 @@ private:
     }
 
     const std::vector<Pendulum::Kernel1D<action_direction>> pendulums_;
+};
+
+struct RewardFunc {
+    template <class S>
+    FloatT operator()(const Particle<S>& state, size_t /*action*/) const {
+        FloatT val = 1.;
+        for (size_t i = 0; i < state.GetDim(); i += 2) {
+            val = std::min(state[i], val);
+        }
+        return val;
+    }
 };
 
 }  // namespace Pendulum

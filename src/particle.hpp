@@ -17,7 +17,7 @@ public:
     template <bool is_const>
     Particle(MemoryViewTemplate<is_const> view) : data_{view} {
     }
-    
+
     template <class T>
     Particle(const AbstractInitializer<T, StorageT>& initializer);
 
@@ -83,6 +83,8 @@ public:
     friend std::ostream& operator<<(std::ostream& stream, const Particle<S>& part);
 
     using iterator = typename StorageT::iterator;
+    using const_iterator = typename StorageT::const_iterator;
+
     inline iterator begin() {
         return data_.begin();
     }
@@ -91,12 +93,20 @@ public:
         return data_.end();
     }
 
+    inline const_iterator begin() const {
+        return data_.begin();
+    }
+
+    inline const_iterator end() const {
+        return data_.end();
+    }
+
 private:
     StorageT data_;
 };
 
 template <bool is_const>
-Particle(MemoryViewTemplate<is_const>) -> Particle<MemoryViewTemplate<is_const>>;
+Particle(MemoryViewTemplate<is_const>)->Particle<MemoryViewTemplate<is_const>>;
 
 class ParticleCluster : private std::vector<Particle<MemoryView>> {
     using ParentT = std::vector<Particle<MemoryView>>;

@@ -42,10 +42,16 @@ TEST(Basic, AbstractKernelWorks) {
     Particle test_particle{ZeroInitializer(8, &storage)};
 
     kernel.Evolve(test_particle, &test_particle);
-    ASSERT_EQ(test_particle, Particle{ConstantInitializer(1., 8)});
+    {
+        auto expected = Particle{ConstantInitializer(1., 8)};
+        ASSERT_EQ(test_particle, expected);
+    }
 
     kernel.Evolve(test_particle, &test_particle);
-    ASSERT_EQ(test_particle, Particle{ConstantInitializer(2., 8)});
+    {
+        auto expected = Particle{ConstantInitializer(2., 8)};
+        ASSERT_EQ(test_particle, expected);
+    }
 }
 
 TEST(Basic, ActionConditionedKernelWorks) {
