@@ -17,14 +17,14 @@ public:
     RNGHolder() = delete;
     RNGHolder(std::mt19937* rd) noexcept : rd_{rd} {
     }
-    std::mt19937* rd_;
+    std::mt19937* const rd_;
 };
 
 template <>
 class RNGHolder<std::false_type> {
 public:
     RNGHolder() = default;
-    NullType* rd_{nullptr};
+    NullType* const rd_{nullptr};
 };
 
 template <class DerivedT, class HasRNGTag = std::true_type>
@@ -33,7 +33,8 @@ class AbstractKernel : public CRTPDerivedCaster<DerivedT> {
 
 public:
     // Can only be instantiated if HasRNG == false
-    AbstractKernel() = default;
+    AbstractKernel() noexcept : rng_holder_{} {
+    }
 
     // Can only be instantiated if HasRNG == true
     AbstractKernel(std::mt19937* random_device) noexcept : rng_holder_(random_device) {
@@ -62,7 +63,7 @@ public:
     }
 
 private:
-    RNGHolder<HasRNGTag> rng_holder_;
+    const RNGHolder<HasRNGTag> rng_holder_;
 };
 
 template <class DerivedT, class HasRNGTag = std::true_type>
@@ -71,7 +72,8 @@ class AbstractConditionedKernel : public CRTPDerivedCaster<DerivedT> {
 
 public:
     // Can only be instantiated if HasRNG == false
-    AbstractConditionedKernel() = default;
+    AbstractConditionedKernel() noexcept : rng_holder_{} {
+    }
 
     // Can only be instantiated if HasRNG == true
     AbstractConditionedKernel(std::mt19937* random_device) : rng_holder_{random_device} {
@@ -99,5 +101,5 @@ public:
     }
 
 private:
-    RNGHolder<HasRNGTag> rng_holder_{};
+    const RNGHolder<HasRNGTag> rng_holder_;
 };
