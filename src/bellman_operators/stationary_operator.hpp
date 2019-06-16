@@ -6,6 +6,7 @@
 #include <src/bellman_operators/qfunc.hpp>
 #include <src/bellman_operators/environment.hpp>
 #include <src/density_estimators/stationary_estimator.hpp>
+#include <src/bellman_operators/abstract_bellman.hpp>
 
 #include <random>
 #include <cassert>
@@ -26,23 +27,35 @@ struct StationaryBellmanOperatorParams {
     size_t num_burnin_iterations = 10;
 };
 
+template <class WPCType>
 struct PrevSampleReweighingHelper {
-    const WeightedParticleCluster* prev_sample;
-    std::optional<FloatT> default_density;
-    FloatT operator()(size_t sample_index) const {
+    PrevSampleReweighingHelper(const WPCType* ps,
+                               std::optional<FloatT> default_den)
+        : prev_sample{ps}, default_density{default_den} {
+    }
+
+    inline FloatT operator()(size_t sample_index) const {
         if (!prev_sample) {
             return default_density.value();
         }
+
         FloatT dens = prev_sample->GetWeights()[sample_index];
         if (dens < 1e-2) {
             return 0;
         }
+
         return 1. / dens;
     }
+
+    const WPCType* const prev_sample;
+    const std::optional<FloatT> default_density;
 };
 
+using PrevSampleReweighingHelperAbstract = PrevSampleReweighingHelper<AbstractWeightedParticleCluster>;
+using PrevSampleReweighingHelperVector = PrevSampleReweighingHelper<VectorWeightedParticleCluster>;
+
 template <class RandomDeviceT, class RewardFuncT, class EstimatorKernelT, class... T>
-class StationaryBellmanOperator {
+class StationaryBellmanOperator final : public AbstractBellmanOperator {
 public:
     StationaryBellmanOperator(const EnvParams<RewardFuncT, T...>& env_params,
                               const StationaryBellmanOperatorParams& operator_params,
@@ -61,8 +74,9 @@ public:
         RandomVectorizingInitializer<MemoryView, decltype(distr), RandomDeviceT> initializer{
             env_params_.ac_kernel.GetSpaceDim(), random_device, distr};
 
-        density_estimator_ = std::make_unique<StationaryDensityEstimator<EstimatorKernelT, std::false_type>>(
-            nullptr, initializer, operator_params_.num_particles);
+        density_estimator_ =
+            std::make_unique<StationaryDensityEstimator<EstimatorKernelT, std::false_type>>(
+                nullptr, initializer, operator_params_.num_particles);
 
         qfunc_primary_.SetParticleCluster(density_estimator_->GetCluster());
         qfunc_secondary_.SetParticleCluster(density_estimator_->GetCluster());
@@ -78,7 +92,7 @@ public:
         LOG(INFO) << "Cluster is initialized";
     }
 
-    void MakeIteration() {
+    void MakeIteration() override {
 #ifndef NDEBUG
         feenableexcept(FE_INVALID | FE_OVERFLOW);
 #endif
@@ -136,16 +150,15 @@ public:
         std::swap(qfunc_primary_, qfunc_secondary_);
     }
 
-    DiscreteQFuncEst& GetQFunc() {
+    const DiscreteQFuncEst& GetQFunc() const override {
         return qfunc_primary_;
     }
 
-    const DiscreteQFuncEst& GetQFunc() const {
-        return qfunc_primary_;
-    }
-
-    const WeightedParticleCluster* GetSamplingDistribution() {
-        return prev_sampling_distribution_.get();
+    const VectorWeightedParticleCluster& GetSamplingDistribution() const override {
+        if (!prev_sampling_distribution_.get()) {
+            throw std::runtime_error("Sampling distribution has not been initialized");
+        }
+        return *(prev_sampling_distribution_.get());
     }
 
 private:
@@ -153,7 +166,7 @@ private:
 #ifndef NDEBUG
         feenableexcept(FE_INVALID | FE_OVERFLOW);
 #endif
-        PrevSampleReweighingHelper prev_sample_reweighing{
+        PrevSampleReweighingHelperVector prev_sample_reweighing{
             prev_sampling_distribution_.get(),
             1 / pow(2 * operator_params_.init_radius, env_params_.ac_kernel.GetSpaceDim())};
 
@@ -169,7 +182,7 @@ private:
                                                                         random_device_);
         LOG(INFO) << "Finished";
 
-        const WeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
+        const VectorWeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
 
         // Computing qfunction on new sample
         {
@@ -190,13 +203,13 @@ private:
 
         mdp_kernel.ResetPolicy(nullptr);
         density_estimator_->ResetKernel(nullptr);
-        prev_sampling_distribution_ = std::make_unique<WeightedParticleCluster>(invariant_distr);
+        prev_sampling_distribution_ = std::make_unique<VectorWeightedParticleCluster>(invariant_distr);
 
         RecomputeWeights();
     }
 
     void RecomputeWeights() {
-        const WeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
+        const VectorWeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
         for (size_t action_num = 0; action_num < env_params_.ac_kernel.GetDim(); ++action_num) {
             ParallelFor{0, operator_params_.num_particles, 255}([&](size_t target_ix) {
                 FloatT sum = 0;
@@ -232,9 +245,10 @@ private:
     const StationaryBellmanOperatorParams operator_params_;
     RandomDeviceT* const random_device_;
     DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
-    std::unique_ptr<StationaryDensityEstimator<EstimatorKernelT, std::false_type>> density_estimator_{nullptr};
+    std::unique_ptr<StationaryDensityEstimator<EstimatorKernelT, std::false_type>>
+        density_estimator_{nullptr};
     std::vector<std::array<FloatT, sizeof...(T)>> additional_weights_;
-    std::unique_ptr<WeightedParticleCluster> prev_sampling_distribution_{nullptr};
+    std::unique_ptr<VectorWeightedParticleCluster> prev_sampling_distribution_{nullptr};
 };
 
 // I feel sorry for this.
@@ -245,5 +259,5 @@ StationaryBellmanOperator(EnvParams<RewardFuncT, T...> env_params,
         RandomDeviceT, RewardFuncT,
         decltype(MDPKernel{env_params.ac_kernel,
                            static_cast<GreedyPolicy<QFuncEstForGreedy<
-                               RewardFuncT, PrevSampleReweighingHelper, T...>>*>(nullptr)}),
+                               RewardFuncT, PrevSampleReweighingHelperVector, T...>>*>(nullptr)}),
         T...>;

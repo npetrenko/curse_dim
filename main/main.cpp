@@ -3,8 +3,6 @@
 #include <src/bellman_operators/uniform_operator.hpp>
 #include <main/pendulum.hpp>
 
-class Policy : public AbstractAgentPolicy<Policy> {};
-
 int main() {
     std::mt19937 rd{1234};
     const size_t kNumPendulums = 10;

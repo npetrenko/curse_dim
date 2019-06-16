@@ -11,23 +11,71 @@
 
 #include <glog/logging.h>
 
-class WeightedParticleCluster : public ParticleCluster {
+class AbstractWeightedParticleCluster : public ParticleCluster {
+public:
+    using ParticleCluster::ParticleCluster;
+    virtual const std::vector<FloatT>& GetWeights() const = 0;
+    virtual std::vector<FloatT>& GetMutableWeights() = 0;
+    virtual ~AbstractWeightedParticleCluster() = default;
+};
+
+class VectorWeightedParticleCluster final : public AbstractWeightedParticleCluster {
 public:
     template <class S>
-    WeightedParticleCluster(size_t size, const AbstractInitializer<S, MemoryView>& initializer)
-        : ParticleCluster{size, initializer}, weights_(size) {
+    VectorWeightedParticleCluster(size_t size,
+                                  const AbstractInitializer<S, MemoryView>& initializer)
+        : AbstractWeightedParticleCluster{size, initializer}, weights_(size) {
     }
 
-    std::vector<FloatT>& GetWeights() {
+    inline const std::vector<FloatT>& GetWeights() const override {
         return weights_;
     }
 
-    const std::vector<FloatT>& GetWeights() const {
+    inline std::vector<FloatT>& GetMutableWeights() override {
         return weights_;
     }
 
 private:
     std::vector<FloatT> weights_;
+};
+
+class ConstantWeightedParticleCluster final : public AbstractWeightedParticleCluster {
+public:
+    template <class S>
+    ConstantWeightedParticleCluster(size_t size,
+                                    const AbstractInitializer<S, MemoryView>& initializer,
+                                    FloatT weighing_constant)
+        : AbstractWeightedParticleCluster{size, initializer},
+          size_{size},
+          weighing_constant_{weighing_constant} {
+    }
+
+    ConstantWeightedParticleCluster(ParticleCluster cluster, FloatT weighing_constant) {
+	throw std::runtime_error("Not implemented");
+    }
+
+    inline std::vector<FloatT>& GetMutableWeights() override {
+        throw std::runtime_error(
+            "GetMutableWeights for ConstantWeightedParticleCluster makes no sense");
+    }
+
+    inline const std::vector<FloatT>& GetWeights() const override {
+        MaybeInitialize();
+        return weights_;
+    }
+
+private:
+    inline void MaybeInitialize() const {
+        if (!vector_is_ititialized_) {
+            vector_is_ititialized_ = true;
+            weights_.resize(size_, weighing_constant_);
+        }
+    }
+
+    mutable std::vector<FloatT> weights_;
+    size_t size_;
+    const FloatT weighing_constant_;
+    mutable bool vector_is_ititialized_{false};
 };
 
 template <class T, class HasRNGTag>
@@ -89,11 +137,11 @@ public:
         MakeWeighing();
     }
 
-    const WeightedParticleCluster& GetCluster() const {
+    const VectorWeightedParticleCluster& GetCluster() const {
         return cluster_;
     }
 
-    WeightedParticleCluster& GetCluster() {
+    VectorWeightedParticleCluster& GetCluster() {
         return cluster_;
     }
 
@@ -148,6 +196,6 @@ private:
     }
 
     AbstractKernel<T, HasRNGTag>* kernel_;
-    WeightedParticleCluster cluster_;
+    VectorWeightedParticleCluster cluster_;
     ParticleCluster secondary_cluster_;
 };

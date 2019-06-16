@@ -3,6 +3,7 @@
 #include <src/bellman.hpp>
 #include <src/particle.hpp>
 #include <src/bellman_operators/environment.hpp>
+#include <src/density_estimators/stationary_estimator.hpp>
 
 #include <optional>
 
@@ -62,20 +63,6 @@ protected:
     size_t dim_;
     std::optional<ParticleCluster> particle_cluster_;
 };
-
-std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
-    for (size_t i = 0; i < est.values_.size() / est.NumActions(); ++i) {
-        stream << est.ValueAtIndex(i);
-        if (est.particle_cluster_) {
-            assert(i < est.particle_cluster_.value().size());
-            stream << est.particle_cluster_.value()[i];
-        } else {
-            stream << "{}";
-        }
-        stream << "\n";
-    }
-    return stream;
-}
 
 template <class RewardFuncT, class ImportanceFuncT, class... T>
 class QFuncEstForGreedy
@@ -144,6 +131,20 @@ private:
     DiscreteQFuncEst discrete_est_;
     ImportanceFuncT importance_func_;
 };
+
+std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est) {
+    for (size_t i = 0; i < est.values_.size() / est.NumActions(); ++i) {
+        stream << est.ValueAtIndex(i);
+        if (est.particle_cluster_) {
+            assert(i < est.particle_cluster_.value().size());
+            stream << est.particle_cluster_.value()[i];
+        } else {
+            stream << "{}";
+        }
+        stream << "\n";
+    }
+    return stream;
+}
 
 template <class T, class RF, class IF>
 std::ostream& operator<<(std::ostream& stream, const QFuncEstForGreedy<T, RF, IF>& est) {

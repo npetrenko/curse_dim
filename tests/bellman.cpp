@@ -36,8 +36,8 @@ private:
 };
 
 TEST(Basic, AbstractKernelWorks) {
-    ParticleStorage storage {1024};
-    DetermKernel<1> kernel {};
+    ParticleStorage storage{1024};
+    DetermKernel<1> kernel{};
 
     Particle test_particle{ZeroInitializer(8, &storage)};
 
@@ -55,7 +55,7 @@ TEST(Basic, AbstractKernelWorks) {
 }
 
 TEST(Basic, ActionConditionedKernelWorks) {
-    ParticleStorage storage {1024};
+    ParticleStorage storage{1024};
     ActionConditionedKernel kernel{DetermKernel<1>{}, DetermKernel<2>{}};
 
     Particle test_particle{ZeroInitializer(8, &storage)};
@@ -68,9 +68,9 @@ TEST(Basic, ActionConditionedKernelWorks) {
 }
 
 TEST(Basic, DeterministicKernelWorks) {
-    ParticleStorage storage {1024};
+    ParticleStorage storage{1024};
     DummyPolicy policy;
-    ActionConditionedKernel ac_kernel {DetermKernel<1>{}, DetermKernel<2>{}};
+    ActionConditionedKernel ac_kernel{DetermKernel<1>{}, DetermKernel<2>{}};
     /*
     static_assert(
         std::is_same_v<
@@ -270,7 +270,7 @@ TEST(UniformBellman, SimpleModel) {
         bellman_op.MakeIteration();
     }
 
-    QFuncEstForGreedy qfunc_est{env_params, std::move(bellman_op.GetQFunc()),
+    QFuncEstForGreedy qfunc_est{env_params, bellman_op.GetQFunc(),
                                 // Correction for importance sampling
                                 [](auto) { return 2.; }};
     GreedyPolicy policy{qfunc_est};
@@ -303,7 +303,7 @@ TEST(StationaryBellmanOperator, SimpleModel) {
         bellman_op.MakeIteration();
     }
 
-    PrevSampleReweighingHelper rew_helper{bellman_op.GetSamplingDistribution(), std::nullopt};
+    PrevSampleReweighingHelper rew_helper{&bellman_op.GetSamplingDistribution(), std::nullopt};
     QFuncEstForGreedy qfunc_est{env_params, bellman_op.GetQFunc(), rew_helper};
 
     GreedyPolicy policy{qfunc_est};
