@@ -14,6 +14,10 @@
 class AbstractWeightedParticleCluster : public ParticleCluster {
 public:
     using ParticleCluster::ParticleCluster;
+    AbstractWeightedParticleCluster(ParticleCluster cluster)
+        : ParticleCluster{std::move(cluster)} {
+    }
+
     virtual const std::vector<FloatT>& GetWeights() const = 0;
     virtual std::vector<FloatT>& GetMutableWeights() = 0;
     virtual ~AbstractWeightedParticleCluster() = default;
@@ -46,12 +50,12 @@ public:
                                     const AbstractInitializer<S, MemoryView>& initializer,
                                     FloatT weighing_constant)
         : AbstractWeightedParticleCluster{size, initializer},
-          size_{size},
           weighing_constant_{weighing_constant} {
     }
 
-    ConstantWeightedParticleCluster(ParticleCluster cluster, FloatT weighing_constant) {
-	throw std::runtime_error("Not implemented");
+    ConstantWeightedParticleCluster(ParticleCluster cluster, FloatT weighing_constant)
+        : AbstractWeightedParticleCluster{std::move(cluster)},
+          weighing_constant_{weighing_constant} {
     }
 
     inline std::vector<FloatT>& GetMutableWeights() override {
@@ -68,12 +72,11 @@ private:
     inline void MaybeInitialize() const {
         if (!vector_is_ititialized_) {
             vector_is_ititialized_ = true;
-            weights_.resize(size_, weighing_constant_);
+            weights_.resize(this->size(), weighing_constant_);
         }
     }
 
     mutable std::vector<FloatT> weights_;
-    size_t size_;
     const FloatT weighing_constant_;
     mutable bool vector_is_ititialized_{false};
 };
@@ -165,7 +168,7 @@ private:
     void MakeWeighingUsual() {
         ParallelFor{0, cluster_.size(), 1}([&](size_t i) {
             const auto& particle = cluster_[i];
-            FloatT& particle_weight = cluster_.GetWeights()[i];
+            FloatT& particle_weight = cluster_.GetMutableWeights()[i];
             particle_weight = 0;
             for (const auto& from_particle : cluster_) {
                 particle_weight +=
@@ -183,7 +186,7 @@ private:
 
         ParallelFor{0, cluster_.size(), 1}([&](size_t i) {
             const auto& particle = cluster_[i];
-            FloatT& particle_weight = cluster_.GetWeights()[i];
+            FloatT& particle_weight = cluster_.GetMutableWeights()[i];
             particle_weight = 0;
             for (size_t from_ix = 0; from_ix < cluster_.size(); ++from_ix) {
                 const auto& from_particle = cluster_[from_ix];

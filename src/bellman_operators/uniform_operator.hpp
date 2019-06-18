@@ -33,7 +33,7 @@ public:
     }
 
     const ConstantWeightedParticleCluster& GetSamplingDistribution() const override {
-        return sampling_distribution_;
+        return *sampling_distribution_;
     }
 
 private:
@@ -69,13 +69,10 @@ UniformBellmanOperator<RandomDeviceT, RewardFuncT, T...>::UniformBellmanOperator
     }
 
     NormalizeWeights();
-    sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(_Args &&...)
-    static_cast<ParticleCluster&>(sampling_distribution_) = qfunc_primary_.GetParticleCluster();
     {
         FloatT weight = pow(1 / (2 * radius_), env_params.ac_kernel.GetSpaceDim());
-        for (auto& sampling_weight : sampling_distribution_.GetWeights()) {
-            sampling_weight = weight;
-        }
+        sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(
+            qfunc_primary_.GetParticleCluster(), weight);
     }
 }
 
