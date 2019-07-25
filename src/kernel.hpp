@@ -16,16 +16,12 @@
 
 template <class... T>
 class ActionConditionedKernel final
-    : public AbstractConditionedKernel<ActionConditionedKernel<T...>, std::false_type> {
-    friend class AbstractConditionedKernel<ActionConditionedKernel<T...>, std::false_type>;
-
+    : public ConditionedRNGKernel {
 public:
-    ActionConditionedKernel(T&&... args) : fixed_action_kernels_{std::move(args)...} {
-    }
-    ActionConditionedKernel(const T&... args) : fixed_action_kernels_{args...} {
+    ActionConditionedKernel(T&&... args) : fixed_action_kernels_{std::forward<T>(args)...} {
     }
 
-    inline size_t GetSpaceDim() const {
+    inline size_t GetSpaceDim() const override {
         size_t result = std::get<0>(fixed_action_kernels_).GetSpaceDim();
 // Need to add checks
 #ifndef NDEBUG
@@ -38,27 +34,23 @@ public:
     }
 
 private:
-    template <class S1, class S2, class RandomDeviceT>
-    void EvolveConditionallyImpl(const Particle<S1>& from, Particle<S2>* output,
-                                 size_t action_number, RandomDeviceT* rd) const {
-        EvolveHelper<S1, S2, RandomDeviceT> helper{from, output, rd};
+    void EvolveConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output, size_t action_number, std::mt19937* rd) const override {
+        EvolveHelper helper{from, output, rd};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
     }
 
-    template <class S1, class S2>
-    FloatT GetTransDensityConditionallyImpl(const Particle<S1>& from, const Particle<S2>& to,
-                                            size_t action_number) const {
+    FloatT GetTransDensityConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticlePtr to,
+                                            size_t action_number) const override {
         FloatT result;
-        DensityHelper<S1, S2> helper{from, to, result};
+        DensityHelper helper{from, to, result};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
         return result;
     }
 
-    template <class S1, class S2, class RandomDeviceT>
     struct EvolveHelper {
-        const Particle<S1>& from;
-        Particle<S2>* to;
-        RandomDeviceT* rd;
+        TypeErasedParticleRef from;
+        TypeErasedParticlePtr to;
+	std::mt19937* rd;
 
         template <class Ker>
         inline void operator()(const Ker& kernel) {
@@ -70,10 +62,9 @@ private:
         }
     };
 
-    template <class S1, class S2>
     struct DensityHelper {
-        const Particle<S1>& from;
-        const Particle<S2>& to;
+        TypeErasedParticleRef from;
+        TypeErasedParticleRef to;
         FloatT& result;
 
         template <class Ker>
@@ -85,38 +76,25 @@ private:
     std::tuple<T...> fixed_action_kernels_;
 };
 
-template <class DerivedT>
-class HintableKernel : public AbstractKernel<DerivedT, std::false_type> {
-    using Caster = CRTPDerivedCaster<DerivedT>;
+class HintableKernel : public AbstractRNGKernel {
 
 public:
     HintableKernel() = default;
 
-    HintableKernel(std::mt19937* rd) : AbstractKernel<DerivedT, std::false_type>{rd} {
+    HintableKernel(std::mt19937* rd) : AbstractRNGKernel{rd} {
     }
 
-    template <class S>
-    auto CalculateHint(const Particle<S>& from) const {
-        return Caster::GetDerived()->CalculateHintImpl(from);
-    }
+    using HintT = size_t;
 
-    template <class S1, class S2, class HintT>
-    FloatT GetTransDensityWithHint(const Particle<S1>& from, const Particle<S2>& to,
-                                   HintT* hint) const {
-        return Caster::GetDerived()->GetTransDensityWithHintImpl(from, to, hint);
-    }
+    virtual HintT CalculateHint(TypeErasedParticleRef from) const = 0;
+
+    virtual FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to, HintT* hint) const = 0;
 };
 
 template <class DerivedPolicy, class T>
-class MDPKernel final : public HintableKernel<MDPKernel<DerivedPolicy, T>> {
-    using ThisT = MDPKernel<DerivedPolicy, T>;
-    friend class HintableKernel<ThisT>;
-    friend class AbstractKernel<ThisT, std::false_type>;
-
+class MDPKernel final : public HintableKernel {
 public:
-    using HintT = size_t;
-
-    MDPKernel(const AbstractConditionedKernel<T, std::false_type>& action_conditioned_kernel,
+    MDPKernel(const ConditionedRNGKernel& action_conditioned_kernel,
               AbstractAgentPolicy<DerivedPolicy>* agent_policy)
         : conditioned_kernel_{type_traits::GetDeepestLevelCopy(action_conditioned_kernel)},
           agent_policy_{agent_policy} {

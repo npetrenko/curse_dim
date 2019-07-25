@@ -7,99 +7,72 @@
 #include <random>
 #include <cassert>
 
-// Utility structure for template magic
-template <class HasRNGTag>
-class RNGHolder;
-
-template <>
-class RNGHolder<std::true_type> {
+class IKernel {
 public:
-    RNGHolder() = delete;
-    RNGHolder(std::mt19937* rd) noexcept : rd_{rd} {
-    }
-    std::mt19937* const rd_;
+    virtual void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output, std::mt19937* rd = nullptr) = 0;
+    virtual FloatT GetTransDensity(TypeErasedParticleRef from, TypeErasedParticleRef to) = 0;
+    virtual size_t GetSpaceDim() const = 0;
 };
 
-template <>
-class RNGHolder<std::false_type> {
+class ICondKernel {
 public:
-    RNGHolder() = default;
-    NullType* const rd_{nullptr};
+    virtual void EvolveConditionally(TypeErasedParticleRef from, TypeErasedParticlePtr output, size_t condition, std::mt19937* rd = nullptr) = 0;
+    virtual FloatT GetTransDensityConditionally(TypeErasedParticleRef from, TypeErasedParticle to, size_t condition) = 0;
+    virtual size_t GetSpaceDim() const = 0;
 };
 
-template <class DerivedT, class HasRNGTag = std::true_type>
-class AbstractKernel : public CRTPDerivedCaster<DerivedT> {
-    using Caster = CRTPDerivedCaster<DerivedT>;
-
+class RNGKernel : public IKernel {
 public:
-    // Can only be instantiated if HasRNG == false
-    AbstractKernel() noexcept : rng_holder_{} {
-    }
+    RNGKernel() = default;
 
     // Can only be instantiated if HasRNG == true
-    AbstractKernel(std::mt19937* random_device) noexcept : rng_holder_(random_device) {
+    RNGKernel(std::mt19937* random_device) noexcept : this_rd_(random_device) {
     }
 
-    template <class S1, class S2, class RandomDeviceT = NullType>
-    inline void Evolve(const Particle<S1>& from, Particle<S2>* output,
-                       RandomDeviceT* rd = nullptr) const {
-        assert(from.GetDim() == output->GetDim());
-        if constexpr (std::is_same_v<NullType, RandomDeviceT>) {
-            (void)rd;
-            Caster::GetDerived()->EvolveImpl(from, output, rng_holder_.rd_);
-        } else {
-            Caster::GetDerived()->EvolveImpl(from, output, rd);
-        }
+    inline void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+                       std::mt19937* rd = nullptr) const final override {
+	if (rd) {
+	    EvolveImpl(from, output, rd);
+	} else {
+	    EvolveImpl(from, output, this_rd_);
+	}
     }
 
-    template <class S1, class S2>
-    inline FloatT GetTransDensity(const Particle<S1>& from, const Particle<S2>& to) const {
+    inline FloatT GetTransDensity(TypeErasedParticleRef from, TypeErasedParticleRef to) const final override {
         assert(from.GetDim() == to.GetDim());
-        return Caster::GetDerived()->GetTransDensityImpl(from, to);
-    }
-
-    inline size_t GetSpaceDim() const {
-        return Caster::GetDerived()->GetSpaceDim();
+        return GetTransDensityImpl(from, to);
     }
 
 private:
-    const RNGHolder<HasRNGTag> rng_holder_;
+    virtual void EvolveImpl(TypeErasedParticleRef from, TypeErasedParticlePtr to, std::mt19937* rd) = 0;
+    virtual FloatT GetTransDensityImpl(TypeErasedParticleRef from, TypeErasedParticleRef to) const = 0;
+    std::mt19937* const this_rd_{nullptr};
 };
 
-template <class DerivedT, class HasRNGTag = std::true_type>
-class AbstractConditionedKernel : public CRTPDerivedCaster<DerivedT> {
-    using Caster = CRTPDerivedCaster<DerivedT>;
-
+class ConditionedRNGKernel : public ICondKernel {
 public:
-    // Can only be instantiated if HasRNG == false
-    AbstractConditionedKernel() noexcept : rng_holder_{} {
+    ConditionedRNGKernel() = default;
+
+    ConditionedRNGKernel(std::mt19937* random_device) noexcept : rng_holder_{random_device} {
     }
 
-    // Can only be instantiated if HasRNG == true
-    AbstractConditionedKernel(std::mt19937* random_device) : rng_holder_{random_device} {
-    }
-
-    template <class S1, class S2, class RandomDeviceT = NullType>
-    inline void EvolveConditionally(const Particle<S1>& from, Particle<S2>* output,
-                                    size_t condition, RandomDeviceT* rd = nullptr) const {
-        if constexpr (std::is_same_v<NullType, RandomDeviceT>) {
-            (void)rd;
-            Caster::GetDerived()->EvolveConditionallyImpl(from, output, condition, rng_holder_.rd_);
+    inline void EvolveConditionally(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+                                    size_t condition, std::mt19937* rd = nullptr) const final {
+        if (rd) {
+	    EvolveConditionallyImpl(from, output, condition, rd);
         } else {
-            Caster::GetDerived()->EvolveConditionallyImpl(from, output, condition, rd);
+	    EvolveConditionallyImpl(from, output, condition, this_rd_);
         }
     }
 
-    template <class S1, class S2>
-    inline FloatT GetTransDensityConditionally(const Particle<S1>& from, const Particle<S2>& to,
-                                               size_t condition) const {
-        return Caster::GetDerived()->GetTransDensityConditionallyImpl(from, to, condition);
-    }
-
-    inline size_t GetSpaceDim() const {
-        return Caster::GetDerived()->GetSpaceDim();
+    inline FloatT GetTransDensityConditionally(TypeErasedParticleRef  from, TypeErasedParticleRef to,
+                                               size_t condition) const final {
+        return GetTransDensityConditionallyImpl(from, to, condition);
     }
 
 private:
-    const RNGHolder<HasRNGTag> rng_holder_;
+    virtual void EvolveConditionallyImpl(TypeErasedParticleRef, TypeErasedParticlePtr, size_t) = 0;
+    virtual FloatT GetTransDensityConditionally(TypeErasedParticleRef, TypeErasedParticleRef, size_t) = 0;
+
+    std::mt19937* const rng_holder_;
 };

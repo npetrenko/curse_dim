@@ -108,6 +108,37 @@ private:
 template <bool is_const>
 Particle(MemoryViewTemplate<is_const>)->Particle<MemoryViewTemplate<is_const>>;
 
+class TypeErasedParticleRef : public Particle<MemoryView> {
+    using ParentT = Particle<MemoryView>;
+public:
+    template <class StorageT>
+    TypeErasedParticleRef(const Particle<StorageT>& part) : ParentT(MemoryView(&*part.begin(), part.GetDim())) {
+    }
+
+    template <class StorageT>
+    TypeErasedParticleRef(Particle<StorageT>&& part) {
+	//static_assert(false, "TypeErasedParticle cannot be created from temporary particle");
+    }
+};
+
+class TypeErasedParticlePtr {
+public:
+    template <class StorageT>
+    TypeErasedParticlePtr(Particle<StorageT>* part) : data_(MemoryView(&*part->begin(), part->GetDim())) {
+    }
+
+    Particle<MemoryView>& operator*() const {
+	return data_;
+    }
+
+    Particle<MemoryView>* operator->() const {
+	return &data_;
+    }
+
+private:
+    Particle<MemoryView> data_;
+};
+
 class ParticleCluster : private std::vector<Particle<MemoryView>> {
     using ParentT = std::vector<Particle<MemoryView>>;
     using ParticleT = Particle<MemoryView>;
