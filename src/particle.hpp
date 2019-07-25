@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include <src/types.hpp>
-#include <src/util.hpp>
-#include <src/initializer.hpp>
-#include <src/particle_storage.hpp>
+#include "types.hpp"
+#include "util.hpp"
+#include "initializer.hpp"
+#include "particle_storage.hpp"
 
 class ParticleCluster;
 
@@ -136,7 +136,7 @@ public:
     }
 
 private:
-    Particle<MemoryView> data_;
+    mutable Particle<MemoryView> data_;
 };
 
 class ParticleCluster : private std::vector<Particle<MemoryView>> {
@@ -197,8 +197,7 @@ std::ostream& operator<<(std::ostream& stream, const Particle<StorageT>& part) {
     return stream;
 }
 
-/////////////////////////////////////////// Implementation
-//////////////////////////////////////////////////
+/////////////////////////// Implementation////////////////////////////
 
 template <class StorageT>
 template <class T>

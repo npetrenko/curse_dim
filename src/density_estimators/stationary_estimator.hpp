@@ -1,91 +1,21 @@
 #pragma once
 
-#include <src/types.hpp>
-#include <src/kernel.hpp>
-#include <src/particle.hpp>
-#include <src/particle_storage.hpp>
-#include <src/util.hpp>
-#include <src/type_traits.hpp>
+#include "../types.hpp"
+#include "../kernel.hpp"
+#include "../particle.hpp"
+#include "../particle_storage.hpp"
+#include "../util.hpp"
+#include "../type_traits.hpp"
+#include "weighted_particle_clusters.hpp"
 
-#include <thread_pool/include/for_loop.hpp>
+#include "../thread_pool/include/for_loop.hpp"
 
 #include <glog/logging.h>
 
-class AbstractWeightedParticleCluster : public ParticleCluster {
-public:
-    using ParticleCluster::ParticleCluster;
-    AbstractWeightedParticleCluster(ParticleCluster cluster)
-        : ParticleCluster{std::move(cluster)} {
-    }
-
-    virtual const std::vector<FloatT>& GetWeights() const = 0;
-    virtual std::vector<FloatT>& GetMutableWeights() = 0;
-    virtual ~AbstractWeightedParticleCluster() = default;
-};
-
-class VectorWeightedParticleCluster final : public AbstractWeightedParticleCluster {
-public:
-    template <class S>
-    VectorWeightedParticleCluster(size_t size,
-                                  const AbstractInitializer<S, MemoryView>& initializer)
-        : AbstractWeightedParticleCluster{size, initializer}, weights_(size) {
-    }
-
-    inline const std::vector<FloatT>& GetWeights() const override {
-        return weights_;
-    }
-
-    inline std::vector<FloatT>& GetMutableWeights() override {
-        return weights_;
-    }
-
-private:
-    std::vector<FloatT> weights_;
-};
-
-class ConstantWeightedParticleCluster final : public AbstractWeightedParticleCluster {
-public:
-    template <class S>
-    ConstantWeightedParticleCluster(size_t size,
-                                    const AbstractInitializer<S, MemoryView>& initializer,
-                                    FloatT weighing_constant)
-        : AbstractWeightedParticleCluster{size, initializer},
-          weighing_constant_{weighing_constant} {
-    }
-
-    ConstantWeightedParticleCluster(ParticleCluster cluster, FloatT weighing_constant)
-        : AbstractWeightedParticleCluster{std::move(cluster)},
-          weighing_constant_{weighing_constant} {
-    }
-
-    inline std::vector<FloatT>& GetMutableWeights() override {
-        throw std::runtime_error(
-            "GetMutableWeights for ConstantWeightedParticleCluster makes no sense");
-    }
-
-    inline const std::vector<FloatT>& GetWeights() const override {
-        MaybeInitialize();
-        return weights_;
-    }
-
-private:
-    inline void MaybeInitialize() const {
-        if (!vector_is_ititialized_) {
-            vector_is_ititialized_ = true;
-            weights_.resize(this->size(), weighing_constant_);
-        }
-    }
-
-    mutable std::vector<FloatT> weights_;
-    const FloatT weighing_constant_;
-    mutable bool vector_is_ititialized_{false};
-};
-
-template <class T, class HasRNGTag>
 class StationaryDensityEstimator {
 public:
     template <class S>
-    StationaryDensityEstimator(AbstractKernel<T, HasRNGTag>* kernel,
+    StationaryDensityEstimator(RNGKernel* kernel,
                                const AbstractInitializer<S, MemoryView>& initializer,
                                size_t cluster_size)
         : kernel_{kernel},
@@ -148,18 +78,18 @@ public:
         return cluster_;
     }
 
-    const AbstractKernel<T>& GetKernel() const {
+    const RNGKernel& GetKernel() const {
         return *kernel_;
     }
 
-    void ResetKernel(AbstractKernel<T, HasRNGTag>* new_kernel) {
+    void ResetKernel(RNGKernel* new_kernel) {
         kernel_ = new_kernel;
     }
 
 private:
     void MakeWeighing() {
-        if constexpr (type_traits::IsHintable_v<T>) {
-            MakeWeighingHintable(static_cast<T&>(*kernel_));
+        if (auto hintable_ptr = dynamic_cast<HintableKernel*>(kernel_)) {
+            MakeWeighingHintable(*hintable_ptr);
         } else {
             MakeWeighingUsual();
         }
@@ -177,8 +107,7 @@ private:
         });
     }
 
-    template <class DerivedT>
-    void MakeWeighingHintable(const HintableKernel<DerivedT>& hintable_kernel) {
+    void MakeWeighingHintable(const HintableKernel& hintable_kernel) {
         using HintT = decltype(hintable_kernel.CalculateHint(cluster_[0]));
         std::vector<HintT> hints(cluster_.size());
         ParallelFor{0, cluster_.size(),
@@ -198,7 +127,7 @@ private:
         });
     }
 
-    AbstractKernel<T, HasRNGTag>* kernel_;
+    RNGKernel* kernel_;
     VectorWeightedParticleCluster cluster_;
     ParticleCluster secondary_cluster_;
 };

@@ -1,59 +1,34 @@
 #pragma once
 
-#include <src/agent_policy.hpp>
-#include <src/kernel.hpp>
-#include <src/util.hpp>
-#include <src/particle.hpp>
+#include "agent_policy.hpp"
+#include "kernel.hpp"
+#include "util.hpp"
+#include "particle.hpp"
 
-template <class DerivedT>
-class AbstractQFuncEstimate : public CRTPDerivedCaster<DerivedT> {
+class IQFuncEstimate : public EnableCloneInterface<IQFuncEstimate> {
 public:
-    template <class StorageT>
-    inline FloatT ValueAtPoint(const Particle<StorageT>& point, size_t action_num) const {
-        return this->GetDerived()->ValueAtPointImpl(point, action_num);
-    }
-
-    // Convenience function. Usually allocates result on the heap.
-    template <class StorageT>
-    inline auto ValueAtPoint(const Particle<StorageT>& point) const {
-        return this->GetDerived()->ValueAtPointImpl(point);
-    }
-
-    inline ConstMemoryView ValueAtIndex(size_t index) const {
-        return this->GetDerived()->ValueAtIndexImpl(index);
-    }
-
-    inline MemoryView ValueAtIndex(size_t index) {
-        return this->GetDerived()->ValueAtIndexImpl(index);
-    }
-
-    inline size_t NumActions() const {
-        return this->GetDerived()->NumActions();
-    }
+    virtual FloatT ValueAtPoint(TypeErasedParticleRef point, size_t action_num) const = 0;
+    virtual ConstMemoryView ValueAtIndex(size_t index) const = 0;
+    virtual MemoryView ValueAtIndex(size_t index) = 0;
+    virtual size_t NumActions() const = 0;
+    virtual ~IQFuncEstimate() = default;
 };
 
-template <class T>
-class GreedyPolicy : public AbstractAgentPolicy<GreedyPolicy<T>> {
+template <class QFuncT>
+class GreedyPolicy : public EnableClone<GreedyPolicy<QFuncT>, InheritFrom<IQFuncEstimate>> {
 public:
-    GreedyPolicy(const AbstractQFuncEstimate<T>& qfunc) noexcept : qfunc_estimate_(qfunc) {
+    GreedyPolicy(const QFuncT& qfunc) noexcept : qfunc_estimate_(qfunc) {
     }
 
-    template <class S>
-    size_t React(const Particle<S>& state) const {
-        struct {
-            const Particle<S>& state;
-            const AbstractQFuncEstimate<T>& qfunc;
-            FloatT operator()(size_t action_num) {
-                return qfunc.ValueAtPoint(state, action_num);
-            }
-        } call_helper{state, qfunc_estimate_};
-        return ReactHelper(call_helper);
+    size_t React(TypeErasedParticleRef state) const override {
+        return ReactHelper(
+            [&](size_t action_num) { return qfunc_estimate_.ValueAtPoint(state, action_num); });
     }
 
-    inline size_t React(size_t state_index) const {
-        return ReactHelper([this, state_index](size_t action_num) {
-            return qfunc_estimate_.ValueAtIndex(state_index)[action_num];
-        });
+    size_t React(size_t state_index) const override {
+        return ReactHelper(
+            [this, state_index, memory_view = qfunc_estimate_.ValueAtIndex(state_index)](
+                size_t action_num) { return memory_view[action_num]; });
     }
 
 private:
@@ -72,5 +47,5 @@ private:
 
         return best_action;
     }
-    const AbstractQFuncEstimate<T>& qfunc_estimate_;
+    const QFuncT& qfunc_estimate_;
 };

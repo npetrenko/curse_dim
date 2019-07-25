@@ -1,7 +1,7 @@
 #pragma once
 
-#include <src/bellman_operators/qfunc.hpp>
-#include <src/density_estimators/stationary_estimator.hpp>
+#include "qfunc.hpp"
+#include "../density_estimators/stationary_estimator.hpp"
 
 class AbstractBellmanOperator {
 public:

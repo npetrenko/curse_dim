@@ -3,15 +3,15 @@
 #include <vector>
 #include <random>
 
-#include <src/types.hpp>
-#include <src/util.hpp>
-#include <src/type_traits.hpp>
-#include <src/particle_storage.hpp>
+#include "types.hpp"
+#include "util.hpp"
+#include "type_traits.hpp"
+#include "particle_storage.hpp"
 
 template <class DerivedT, class StorageT>
 class AbstractInitializer : public CRTPDerivedCaster<DerivedT> {
 public:
-    AbstractInitializer(size_t dim) noexcept : dim_{dim} {
+    explicit AbstractInitializer(size_t dim) noexcept : dim_{dim} {
     }
 
     AbstractInitializer(size_t dim, ParticleStorage* storage) noexcept

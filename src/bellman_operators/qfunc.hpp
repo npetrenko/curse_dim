@@ -1,9 +1,9 @@
 #pragma once
 
-#include <src/bellman.hpp>
-#include <src/particle.hpp>
-#include <src/bellman_operators/environment.hpp>
-#include <src/density_estimators/stationary_estimator.hpp>
+#include "../bellman.hpp"
+#include "../particle.hpp"
+#include "environment.hpp"
+#include "stationary_estimator.hpp"
 
 #include <optional>
 

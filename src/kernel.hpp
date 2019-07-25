@@ -1,24 +1,25 @@
 #pragma once
 
-#include <src/types.hpp>
-#include <src/particle.hpp>
-#include <src/exceptions.hpp>
-#include <src/agent_policy.hpp>
-#include <src/util.hpp>
-#include <src/type_traits.hpp>
+#include "types.hpp"
+#include "particle.hpp"
+#include "exceptions.hpp"
+#include "agent_policy.hpp"
+#include "util.hpp"
+#include "type_traits.hpp"
 
-#include <src/abstract_kernel.hpp>
+#include "abstract_kernel.hpp"
 
 #include <array>
 #include <memory>
 #include <exception>
 #include <functional>
 
-template <class... T>
+template <class... Kernels>
 class ActionConditionedKernel final
-    : public ConditionedRNGKernel {
+    : public EnableClone<ActionConditionedKernel<Kernels...>, InheritFrom<ConditionedRNGKernel>> {
 public:
-    ActionConditionedKernel(T&&... args) : fixed_action_kernels_{std::forward<T>(args)...} {
+    ActionConditionedKernel(Kernels&&... args)
+        : fixed_action_kernels_{std::forward<Kernels>(args)...} {
     }
 
     inline size_t GetSpaceDim() const override {
@@ -30,16 +31,17 @@ public:
     }
 
     static inline size_t GetDim() {
-        return sizeof...(T);
+        return sizeof...(Kernels);
     }
 
 private:
-    void EvolveConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output, size_t action_number, std::mt19937* rd) const override {
+    void EvolveConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+                                 size_t action_number, std::mt19937* rd) const override {
         EvolveHelper helper{from, output, rd};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
     }
 
-    FloatT GetTransDensityConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticlePtr to,
+    FloatT GetTransDensityConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticleRef to,
                                             size_t action_number) const override {
         FloatT result;
         DensityHelper helper{from, to, result};
@@ -50,15 +52,10 @@ private:
     struct EvolveHelper {
         TypeErasedParticleRef from;
         TypeErasedParticlePtr to;
-	std::mt19937* rd;
+        std::mt19937* rd;
 
-        template <class Ker>
-        inline void operator()(const Ker& kernel) {
-            if constexpr (std::is_same_v<NullType, RandomDeviceT>) {
-                kernel.Evolve(from, to);
-            } else {
-                kernel.Evolve(from, to, rd);
-            }
+        inline void operator()(const RNGKernel& kernel) {
+            kernel.Evolve(from, to, rd);
         }
     };
 
@@ -67,71 +64,68 @@ private:
         TypeErasedParticleRef to;
         FloatT& result;
 
-        template <class Ker>
-        inline void operator()(const Ker& kernel) {
+        inline void operator()(const RNGKernel& kernel) {
             result = kernel.GetTransDensity(from, to);
         }
     };
 
-    std::tuple<T...> fixed_action_kernels_;
+    std::tuple<Kernels...> fixed_action_kernels_;
 };
 
-class HintableKernel : public AbstractRNGKernel {
+class HintableKernel : public EnableCloneInterface<HintableKernel, InheritFrom<RNGKernel>> {
+    using BaseT = EnableCloneInterface<HintableKernel, InheritFrom<RNGKernel>>;
 
 public:
     HintableKernel() = default;
 
-    HintableKernel(std::mt19937* rd) : AbstractRNGKernel{rd} {
+    HintableKernel(std::mt19937* rd) : BaseT(rd) {
     }
 
     using HintT = size_t;
 
     virtual HintT CalculateHint(TypeErasedParticleRef from) const = 0;
-
-    virtual FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to, HintT* hint) const = 0;
+    virtual FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to,
+                                           HintT* hint) const = 0;
 };
 
-template <class DerivedPolicy, class T>
-class MDPKernel final : public HintableKernel {
+class MDPKernel final : public EnableClone<MDPKernel, InheritFrom<HintableKernel>> {
 public:
-    MDPKernel(const ConditionedRNGKernel& action_conditioned_kernel,
-              AbstractAgentPolicy<DerivedPolicy>* agent_policy)
-        : conditioned_kernel_{type_traits::GetDeepestLevelCopy(action_conditioned_kernel)},
-          agent_policy_{agent_policy} {
+    template <class... Kernels>
+    MDPKernel(const ActionConditionedKernel<Kernels...>& action_conditioned_kernel,
+              AbstractAgentPolicy* agent_policy)
+        : conditioned_kernel_{action_conditioned_kernel.Clone()}, agent_policy_{agent_policy} {
     }
 
-    inline void ResetPolicy(AbstractAgentPolicy<DerivedPolicy>* agent_policy) {
+    inline void ResetPolicy(AbstractAgentPolicy* agent_policy) {
         agent_policy_ = agent_policy;
     }
 
-    inline size_t GetSpaceDim() const {
-        return conditioned_kernel_.GetSpaceDim();
+    inline size_t GetSpaceDim() const override {
+        return conditioned_kernel_->GetSpaceDim();
     }
 
-private:
-    template <class S1, class S2, class RandomDeviceT>
-    void EvolveImpl(const Particle<S1>& from, Particle<S2>* output, RandomDeviceT* rd) const {
-        size_t action_num = agent_policy_->React(from);
-        conditioned_kernel_.EvolveConditionally(from, output, action_num, rd);
-    }
-
-    template <class S1, class S2>
-    FloatT GetTransDensityImpl(const Particle<S1>& from, const Particle<S2>& to) const {
-        size_t action_num = agent_policy_->React(from);
-        return conditioned_kernel_.GetTransDensityConditionally(from, to, action_num);
-    }
-
-    template <class S>
-    HintT CalculateHintImpl(const Particle<S>& from) const {
+    HintT CalculateHint(TypeErasedParticleRef from) const override {
         return agent_policy_->React(from);
     }
 
-    template <class S1, class S2>
-    FloatT GetTransDensityWithHintImpl(const Particle<S1>& from, const Particle<S2>& to,
-                                       HintT* hint) const {
-        return conditioned_kernel_.GetTransDensityConditionally(from, to, *hint);
+    FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to,
+                                   HintT* hint) const override {
+        return conditioned_kernel_->GetTransDensityConditionally(from, to, *hint);
     }
 
-    type_traits::DeepestCRTPType<AbstractConditionedKernel<T, std::false_type>> conditioned_kernel_;
-    AbstractAgentPolicy<DerivedPolicy>* agent_policy_{nullptr};
+private:
+    void EvolveImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+                    std::mt19937* rd) const override {
+        size_t action_num = agent_policy_->React(from);
+        conditioned_kernel_->EvolveConditionally(from, output, action_num, rd);
+    }
+
+    FloatT GetTransDensityImpl(TypeErasedParticleRef from,
+                               TypeErasedParticleRef to) const override {
+        size_t action_num = agent_policy_->React(from);
+        return conditioned_kernel_->GetTransDensityConditionally(from, to, action_num);
+    }
+
+    std::unique_ptr<ICondKernel> conditioned_kernel_;
+    AbstractAgentPolicy* agent_policy_{nullptr};
 };

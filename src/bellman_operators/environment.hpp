@@ -1,14 +1,21 @@
 #pragma once
 
-#include <src/kernel.hpp>
-#include <src/agent_policy.hpp>
+#include "../kernel.hpp"
+#include "../agent_policy.hpp"
 
-template <class RewardFunctionT, class... T>
 struct EnvParams {
-    EnvParams(ActionConditionedKernel<T...> kernel, RewardFunctionT reward, FloatT gamma)
-        : ac_kernel{std::move(kernel)}, reward_function{std::move(reward)}, kGamma{gamma} {
+    using RewardFuncT = std::function<FloatT(TypeErasedParticleRef)>;
+    EnvParams(const ConditionedRNGKernel& kernel, RewardFuncT reward, FloatT gamma)
+        : ac_kernel{kernel.Clone()}, reward_function{std::move(reward)}, kGamma{gamma} {
     }
-    const ActionConditionedKernel<T...> ac_kernel;
-    const RewardFunctionT reward_function;
+
+    EnvParams(const EnvParams& other) : reward_function(other.reward_function), kGamma(other.kGamma) {
+	ac_kernel = other.ac_kernel->Clone();
+    }
+
+    EnvParams(EnvParams&&) = default;
+
+    std::unique_ptr<ConditionedRNGKernel> ac_kernel;
+    const RewardFuncT reward_function;
     const FloatT kGamma;
 };

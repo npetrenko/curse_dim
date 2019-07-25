@@ -1,12 +1,12 @@
 #pragma once
 
-#include <src/bellman.hpp>
-#include <src/kernel.hpp>
-#include <src/particle.hpp>
-#include <src/bellman_operators/qfunc.hpp>
-#include <src/bellman_operators/environment.hpp>
-#include <src/bellman_operators/abstract_bellman.hpp>
-#include <src/density_estimators/stationary_estimator.hpp>
+#include "../bellman.hpp"
+#include "../kernel.hpp"
+#include "../particle.hpp"
+#include "qfunc.hpp"
+#include "environment.hpp"
+#include "abstract_bellman.hpp"
+#include "../density_estimators/stationary_estimator.hpp"
 
 #include <random>
 #include <cassert>
@@ -20,11 +20,10 @@
 
 #include <thread_pool/include/for_loop.hpp>
 
-template <class RandomDeviceT, class RewardFuncT, class... Kernels>
 class UniformBellmanOperator : public AbstractBellmanOperator {
 public:
-    UniformBellmanOperator(EnvParams<RewardFuncT, Kernels...> env_params, size_t num_particles,
-                           FloatT radius, RandomDeviceT* random_device);
+    UniformBellmanOperator(EnvParams env_params, size_t num_particles,
+                           FloatT radius, std::mt19937* random_device);
 
     void MakeIteration() override;
 
@@ -39,9 +38,9 @@ public:
 private:
     void NormalizeWeights();
 
-    EnvParams<RewardFuncT, Kernels...> env_params_;
+    EnvParams env_params_;
     FloatT radius_;
-    RandomDeviceT* random_device_;
+    std::mt19937* random_device_;
     std::vector<std::array<FloatT, sizeof...(Kernels)>> additional_weights_;
     DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
     std::unique_ptr<ConstantWeightedParticleCluster> sampling_distribution_;

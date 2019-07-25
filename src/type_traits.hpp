@@ -17,7 +17,6 @@ protected:
     }
 };
 
-template <class T>
 class HintableKernel;
 
 namespace type_traits {
@@ -69,8 +68,7 @@ DeepestCRTPType<T> GetDeepestLevelCopy(const T& arg) {
 // Class to find if the class is public derived from HintableKernel<T>
 template <class T>
 struct IsHintable {
-    template <class DerivedT>
-    static void Helper(const ::HintableKernel<DerivedT>&);
+    static void Helper(const ::HintableKernel&);
 
     template <class TestT, class = decltype(Helper(std::declval<TestT&>()))>
     static std::true_type Tester(const TestT& val);

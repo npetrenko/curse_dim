@@ -1,18 +1,10 @@
 #pragma once
 
-#include <src/particle.hpp>
+#include "particle.hpp"
 
-template<class DerivedT>
-class AbstractAgentPolicy : public CRTPDerivedCaster<DerivedT> {
+class AbstractAgentPolicy {
 public:
-    template <class S>
-    inline size_t React(const Particle<S>& state) {
-	return this->GetDerived()->React(state);
-    }
-
-    inline size_t React(size_t state_index) {
-	return this->GetDerived()->React(state_index);
-    }
+    virtual size_t React(TypeErasedParticleRef state) const = 0;
+    virtual size_t React(size_t state_index) const = 0;
+    virtual ~AbstractAgentPolicy() = 0;
 };
-
-#include <src/util.hpp>
