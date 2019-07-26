@@ -1,6 +1,6 @@
 #pragma once
 
-#include <src/kernel.hpp>
+#include <include/kernel.hpp>
 
 namespace Pendulum {
 const FloatT kActionForce = 1.;

@@ -4,5 +4,7 @@ release/
 debug/
 tsan/
 asan/
+reldeb/
+relwithdebinfo/
 .#*
 *.so

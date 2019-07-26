@@ -1,6 +1,6 @@
-#include <src/abstract_kernel.hpp>
-#include <src/kernel.hpp>
-#include <src/type_traits.hpp>
+#include <include/abstract_kernel.hpp>
+#include <include/kernel.hpp>
+#include <include/type_traits.hpp>
 
 #include <string>
 
@@ -21,22 +21,4 @@ struct Derived : public Base<Derived> {};
 TEST(TypeTraits, Simple) {
     using Type = type_traits::DeepestCRTPType<Base<Derived>>;
     CheckType(Type, Derived);
-}
-
-template <int val>
-class Kernel : public AbstractKernel<Kernel<val>, std::false_type> {};
-
-TEST(TypeTraits, ActionConditionedKernel) {
-    ActionConditionedKernel ac{Kernel<1>{}, Kernel<2>{}};
-    using Type =
-        type_traits::DeepestCRTPType<AbstractConditionedKernel<decltype(ac), std::false_type>>;
-    CheckType(Type, decltype(ac));
-}
-
-class Policy : public AbstractAgentPolicy<Policy> {};
-
-TEST(TypeTraits, IsHintable) {
-    Policy policy;
-    MDPKernel kernel{ActionConditionedKernel{Kernel<1>{}, Kernel<2>{}}, &policy};
-    ASSERT_TRUE(type_traits::IsHintable_v<decltype(kernel)>);
 }

@@ -1,4 +1,4 @@
-#include <src/particle.hpp>
+#include <include/particle.hpp>
 
 ParticleCluster::ParticleCluster(const ParticleCluster& other)
     : ParentT{other}, storage_{other.storage_} {

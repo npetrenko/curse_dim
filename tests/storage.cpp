@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <src/particle.hpp>
-#include <src/particle_storage.hpp>
+#include <include/particle.hpp>
+#include <include/particle_storage.hpp>
 
 TEST(Cluster, CopyConstruct) {
     ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(1)};

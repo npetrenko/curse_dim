@@ -1,12 +1,13 @@
+/*
 #pragma once
 
-#include <src/bellman.hpp>
-#include <src/kernel.hpp>
-#include <src/particle.hpp>
-#include <src/bellman_operators/qfunc.hpp>
-#include <src/bellman_operators/environment.hpp>
-#include <src/density_estimators/stationary_estimator.hpp>
-#include <src/bellman_operators/abstract_bellman.hpp>
+#include <include/bellman.hpp>
+#include <include/kernel.hpp>
+#include <include/particle.hpp>
+#include <include/bellman_operators/qfunc.hpp>
+#include <include/bellman_operators/environment.hpp>
+#include <include/density_estimators/stationary_estimator.hpp>
+#include <include/bellman_operators/abstract_bellman.hpp>
 
 #include <random>
 #include <cassert>
@@ -261,3 +262,5 @@ StationaryBellmanOperator(EnvParams<RewardFuncT, T...> env_params,
                            static_cast<GreedyPolicy<QFuncEstForGreedy<
                                RewardFuncT, PrevSampleReweighingHelperVector, T...>>*>(nullptr)}),
         T...>;
+
+*/

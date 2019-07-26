@@ -1,6 +1,6 @@
-#include <src/kernel.hpp>
-#include <src/agent_policy.hpp>
-#include <src/bellman_operators/uniform_operator.hpp>
+#include <include/kernel.hpp>
+#include <include/agent_policy.hpp>
+#include <include/bellman_operators/uniform_operator.hpp>
 #include <main/pendulum.hpp>
 
 int main() {

@@ -64,14 +64,24 @@ bool ContiguousStridedIterator<T, ic>::EndProxy::operator!=(
 
 template <class T, bool is_const>
 class ContiguousIterator {
-    using finT = std::conditional_t<is_const, const T*, T*>;
-    using retT = std::conditional_t<is_const, const T&, T&>;
-    using value_type = T;
+public:
+    template <class S, bool c>
+    friend class ContiguousIterator;
 
-    explicit ContiguousIterator(finT data) noexcept : data_(data) {
+    using pointer = std::conditional_t<is_const, const T*, T*>;
+    using reference = std::conditional_t<is_const, const T&, T&>;
+    using value_type = T;
+    using difference_type = void;
+    using iterator_category = std::forward_iterator_tag;    
+
+    explicit ContiguousIterator(pointer data) noexcept : data_(data) {
     }
 
-    inline retT operator*() const {
+    ContiguousIterator(const ContiguousIterator<T, false>& other) noexcept {
+	data_ = other.data_;
+    }
+
+    inline reference operator*() const {
         return *data_;
     }
 
@@ -96,5 +106,5 @@ class ContiguousIterator {
     }
 
 private:
-    finT data_;
+    pointer data_;
 };

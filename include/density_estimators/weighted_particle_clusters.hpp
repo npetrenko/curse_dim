@@ -23,12 +23,12 @@ public:
         : AbstractWeightedParticleCluster{size, initializer}, weights_(size) {
     }
 
-    inline ConstMemoryView GetWeights() const override {
-        return {weights_.data(), weights_.size()};
+    inline ConstStridedMemoryView GetWeights() const override {
+        return ConstMemoryView{weights_.data(), weights_.size()};
     }
 
-    inline MemoryView GetMutableWeights() override {
-        return {weights_.data(), weights_.size()};
+    inline StridedMemoryView GetMutableWeights() override {
+        return MemoryView{weights_.data(), weights_.size()};
     }
 
 private:
@@ -60,6 +60,5 @@ public:
     }
 
 private:
-    mutable std::vector<FloatT> weights_;
     const FloatT weighing_constant_;
 };

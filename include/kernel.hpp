@@ -14,9 +14,16 @@
 #include <exception>
 #include <functional>
 
+class IActionConditionedKernel : public EnableCloneInterface<IActionConditionedKernel, InheritFrom<ConditionedRNGKernel>> {
+    using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFrom<ConditionedRNGKernel>>;
+public:
+    using BaseT::BaseT;
+    virtual size_t GetNumActions() const = 0;
+};
+
 template <class... Kernels>
 class ActionConditionedKernel final
-    : public EnableClone<ActionConditionedKernel<Kernels...>, InheritFrom<ConditionedRNGKernel>> {
+    : public EnableClone<ActionConditionedKernel<Kernels...>, InheritFrom<IActionConditionedKernel>> {
 public:
     ActionConditionedKernel(Kernels&&... args)
         : fixed_action_kernels_{std::forward<Kernels>(args)...} {
@@ -30,7 +37,7 @@ public:
         return result;
     }
 
-    static inline size_t GetDim() {
+    inline size_t GetNumActions() const override {
         return sizeof...(Kernels);
     }
 
@@ -90,13 +97,27 @@ public:
 
 class MDPKernel final : public EnableClone<MDPKernel, InheritFrom<HintableKernel>> {
 public:
-    template <class... Kernels>
-    MDPKernel(const ActionConditionedKernel<Kernels...>& action_conditioned_kernel,
-              AbstractAgentPolicy* agent_policy)
+    MDPKernel(const IActionConditionedKernel& action_conditioned_kernel,
+              IAgentPolicy* agent_policy)
         : conditioned_kernel_{action_conditioned_kernel.Clone()}, agent_policy_{agent_policy} {
     }
 
-    inline void ResetPolicy(AbstractAgentPolicy* agent_policy) {
+    MDPKernel(const MDPKernel& other) {
+	conditioned_kernel_ = other.conditioned_kernel_->Clone();
+	agent_policy_ = other.agent_policy_;
+    }
+
+    MDPKernel(MDPKernel&&) = default;
+
+    MDPKernel& operator=(MDPKernel&&) = default;
+
+    MDPKernel& operator=(const MDPKernel& other) {
+	conditioned_kernel_ = other.conditioned_kernel_->Clone();
+	agent_policy_ = other.agent_policy_;
+	return *this;
+    }
+
+    inline void ResetPolicy(IAgentPolicy* agent_policy) {
         agent_policy_ = agent_policy;
     }
 
@@ -104,28 +125,28 @@ public:
         return conditioned_kernel_->GetSpaceDim();
     }
 
-    HintT CalculateHint(TypeErasedParticleRef from) const override {
+    inline HintT CalculateHint(TypeErasedParticleRef from) const override {
         return agent_policy_->React(from);
     }
 
-    FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to,
+    inline FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to,
                                    HintT* hint) const override {
         return conditioned_kernel_->GetTransDensityConditionally(from, to, *hint);
     }
 
 private:
-    void EvolveImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+    inline void EvolveImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output,
                     std::mt19937* rd) const override {
         size_t action_num = agent_policy_->React(from);
         conditioned_kernel_->EvolveConditionally(from, output, action_num, rd);
     }
 
-    FloatT GetTransDensityImpl(TypeErasedParticleRef from,
+    inline FloatT GetTransDensityImpl(TypeErasedParticleRef from,
                                TypeErasedParticleRef to) const override {
         size_t action_num = agent_policy_->React(from);
         return conditioned_kernel_->GetTransDensityConditionally(from, to, action_num);
     }
 
-    std::unique_ptr<ICondKernel> conditioned_kernel_;
-    AbstractAgentPolicy* agent_policy_{nullptr};
+    std::unique_ptr<IActionConditionedKernel> conditioned_kernel_;
+    IAgentPolicy* agent_policy_{nullptr};
 };

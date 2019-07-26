@@ -4,13 +4,13 @@
 #include <type_traits>
 #include <tuple>
 
-class ParticleStorage;
-class MemoryView;
-class ConstMemoryView;
+template <bool is_const>
+class MemoryViewTemplate;
 
+class ParticleStorage;
 template <class Cont, class = std::enable_if_t<std::is_same_v<Cont, ParticleStorage> ||
-                                               std::is_same_v<Cont, MemoryView> ||
-                                               std::is_same_v<Cont, ConstMemoryView>>>
+                                               std::is_same_v<Cont, MemoryViewTemplate<true>> ||
+                                               std::is_same_v<Cont, MemoryViewTemplate<false>>>>
 inline std::ostream& operator<<(std::ostream& stream, const Cont& container) {
     stream << "{";
     for (const auto& elem : container) {

@@ -37,7 +37,8 @@ class _CloneableImpl;
 #define __CloneImpl                                                           \
 public:                                                                       \
     std::unique_ptr<Derived> Clone() const {                                  \
-        return this->IClone();                                                \
+        auto ptr = this->IClone().release();                                  \
+        return std::unique_ptr<Derived>{static_cast<Derived*>(ptr)};    \
     }                                                                         \
                                                                               \
     std::unique_ptr<ICloneable> IClone() const override {                     \
@@ -47,12 +48,13 @@ public:                                                                       \
                                                                               \
 private:
 
-#define __CloneImplAbstract                  \
-public:                                      \
-    std::unique_ptr<Derived> Clone() const { \
-        return this->IClone();               \
-    }                                        \
-                                             \
+#define __CloneImplAbstract                                                \
+public:                                                                    \
+    std::unique_ptr<Derived> Clone() const {                               \
+        auto ptr = this->IClone().release();                               \
+        return std::unique_ptr<Derived>{static_cast<Derived*>(ptr)}; \
+    }                                                                      \
+                                                                           \
 private:
 
 // three identical implementations, only the inheritance is different

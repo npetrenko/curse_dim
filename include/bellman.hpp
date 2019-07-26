@@ -15,7 +15,7 @@ public:
 };
 
 template <class QFuncT>
-class GreedyPolicy : public EnableClone<GreedyPolicy<QFuncT>, InheritFrom<IQFuncEstimate>> {
+class GreedyPolicy : public EnableClone<GreedyPolicy<QFuncT>, InheritFrom<IAgentPolicy>> {
 public:
     GreedyPolicy(const QFuncT& qfunc) noexcept : qfunc_estimate_(qfunc) {
     }

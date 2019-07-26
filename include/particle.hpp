@@ -1,11 +1,13 @@
 #pragma once
 
 #include <vector>
+#include <iterator>
 
 #include "types.hpp"
 #include "util.hpp"
 #include "initializer.hpp"
 #include "particle_storage.hpp"
+
 
 class ParticleCluster;
 
@@ -14,6 +16,8 @@ class Particle {
     friend class ParticleCluster;
 
 public:
+    using reference = typename std::iterator_traits<typename StorageT::iterator>::reference;
+
     template <bool is_const>
     Particle(MemoryViewTemplate<is_const> view) : data_{view} {
     }
@@ -34,7 +38,7 @@ public:
         return data_.size();
     }
 
-    inline FloatT& operator[](size_t i) {
+    inline reference operator[](size_t i) {
         return data_[i];
     }
 
@@ -108,16 +112,11 @@ private:
 template <bool is_const>
 Particle(MemoryViewTemplate<is_const>)->Particle<MemoryViewTemplate<is_const>>;
 
-class TypeErasedParticleRef : public Particle<MemoryView> {
-    using ParentT = Particle<MemoryView>;
+class TypeErasedParticleRef : public Particle<ConstMemoryView> {
+    using ParentT = Particle<ConstMemoryView>;
 public:
     template <class StorageT>
-    TypeErasedParticleRef(const Particle<StorageT>& part) : ParentT(MemoryView(&*part.begin(), part.GetDim())) {
-    }
-
-    template <class StorageT>
-    TypeErasedParticleRef(Particle<StorageT>&& part) {
-	//static_assert(false, "TypeErasedParticle cannot be created from temporary particle");
+    TypeErasedParticleRef(const Particle<StorageT>& part) : ParentT(ConstMemoryView(&*part.begin(), part.GetDim())) {
     }
 };
 
