@@ -23,12 +23,12 @@ public:
         : AbstractWeightedParticleCluster{size, initializer}, weights_(size) {
     }
 
-    inline ConstStridedMemoryView GetWeights() const override {
-        return {weights_.data(), weights_.size(), 1};
+    inline ConstMemoryView GetWeights() const override {
+        return {weights_.data(), weights_.size()};
     }
 
-    inline StridedMemoryView GetMutableWeights() override {
-        return {weights_.data(), weights_.size(), 1};
+    inline MemoryView GetMutableWeights() override {
+        return {weights_.data(), weights_.size()};
     }
 
 private:

@@ -3,11 +3,11 @@
 #include "../bellman.hpp"
 #include "../particle.hpp"
 #include "environment.hpp"
-#include "stationary_estimator.hpp"
+#include "../density_estimators/stationary_estimator.hpp"
 
 #include <optional>
 
-#include <thread_pool/include/for_loop.hpp>
+#include "../../thread_pool/include/for_loop.hpp"
 
 class DiscreteQFuncEst : public AbstractQFuncEstimate<DiscreteQFuncEst> {
     friend class AbstractQFuncEstimate<DiscreteQFuncEst>;
