@@ -35,8 +35,16 @@ public:
 	return *this->GetDerived();
     }
 
+    auto Build() && {
+        try {
+            return static_cast<Derived&&>(*this).BuildImpl();
+        } catch (std::bad_optional_access&) {
+            throw BuilderNotInitialized();
+        }
+    };
+
 protected:
-    EnvParams env_params_;
-    std::mt19937* random_device_;
-    size_t num_particles_;
+    std::optional<EnvParams> env_params_;
+    std::optional<std::mt19937*> random_device_;
+    std::optional<size_t> num_particles_;
 };

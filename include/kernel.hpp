@@ -14,8 +14,8 @@
 #include <exception>
 #include <functional>
 
-class IActionConditionedKernel : public EnableCloneInterface<IActionConditionedKernel, InheritFrom<ConditionedRNGKernel>> {
-    using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFrom<ConditionedRNGKernel>>;
+class IActionConditionedKernel : public EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>> {
+    using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>>;
 public:
     using BaseT::BaseT;
     virtual size_t GetNumActions() const = 0;
@@ -23,8 +23,11 @@ public:
 
 template <class... Kernels>
 class ActionConditionedKernel final
-    : public EnableClone<ActionConditionedKernel<Kernels...>, InheritFrom<IActionConditionedKernel>> {
+    : public EnableClone<ActionConditionedKernel<Kernels...>, InheritFromVirtual<IActionConditionedKernel>> {
 public:
+    ActionConditionedKernel(const ActionConditionedKernel&) = default;
+    ActionConditionedKernel(ActionConditionedKernel&&) = default;
+
     ActionConditionedKernel(Kernels&&... args)
         : fixed_action_kernels_{std::forward<Kernels>(args)...} {
     }
@@ -41,28 +44,39 @@ public:
         return sizeof...(Kernels);
     }
 
-private:
-    void EvolveConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output,
-                                 size_t action_number, std::mt19937* rd) const override {
-        EvolveHelper helper{from, output, rd};
+    void EvolveConditionally(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+                                 size_t action_number) const override {
+        EvolveHelper<false> helper{from, output, nullptr};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
     }
 
-    FloatT GetTransDensityConditionallyImpl(TypeErasedParticleRef from, TypeErasedParticleRef to,
-                                            size_t action_number) const override {
+    void EvolveConditionally(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+                                 size_t action_number, std::mt19937* rd) const override {
+        EvolveHelper<true> helper{from, output, rd};
+        CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
+    }
+
+    FloatT GetTransDensityConditionally(TypeErasedParticleRef from, TypeErasedParticleRef to,
+                                        size_t action_number) const override {
         FloatT result;
         DensityHelper helper{from, to, result};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
         return result;
     }
 
+private:
+    template <bool needs_rd>
     struct EvolveHelper {
         TypeErasedParticleRef from;
         TypeErasedParticlePtr to;
         std::mt19937* rd;
 
         inline void operator()(const RNGKernel& kernel) {
-            kernel.Evolve(from, to, rd);
+            if constexpr (needs_rd) {
+                kernel.Evolve(from, to, rd);
+            } else {
+		kernel.Evolve(from, to);
+	    }
         }
     };
 
@@ -79,15 +93,8 @@ private:
     std::tuple<Kernels...> fixed_action_kernels_;
 };
 
-class HintableKernel : public EnableCloneInterface<HintableKernel, InheritFrom<RNGKernel>> {
-    using BaseT = EnableCloneInterface<HintableKernel, InheritFrom<RNGKernel>>;
-
+class IHintableKernel : public EnableCloneInterface<IHintableKernel, InheritFromVirtual<IKernel>> {
 public:
-    HintableKernel() = default;
-
-    HintableKernel(std::mt19937* rd) : BaseT(rd) {
-    }
-
     using HintT = size_t;
 
     virtual HintT CalculateHint(TypeErasedParticleRef from) const = 0;
@@ -95,7 +102,18 @@ public:
                                            HintT* hint) const = 0;
 };
 
-class MDPKernel final : public EnableClone<MDPKernel, InheritFrom<HintableKernel>> {
+template <class BaseKernel>
+class HintableKernel : public EnableCloneInterface<HintableKernel<BaseKernel>, InheritFromVirtual<IHintableKernel, BaseKernel>> {
+    using BaseT = EnableCloneInterface<HintableKernel<BaseKernel>, InheritFrom<IHintableKernel, BaseKernel>>;
+
+public:
+    HintableKernel() = default;
+
+    HintableKernel(std::mt19937* rd) : BaseKernel(rd) {
+    }
+};
+
+class MDPKernel final : public EnableClone<MDPKernel, InheritFrom<HintableKernel<IKernel>>> {
 public:
     MDPKernel(const IActionConditionedKernel& action_conditioned_kernel,
               IAgentPolicy* agent_policy)
@@ -134,18 +152,24 @@ public:
         return conditioned_kernel_->GetTransDensityConditionally(from, to, *hint);
     }
 
-private:
-    inline void EvolveImpl(TypeErasedParticleRef from, TypeErasedParticlePtr output,
+    inline void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output,
                     std::mt19937* rd) const override {
         size_t action_num = agent_policy_->React(from);
         conditioned_kernel_->EvolveConditionally(from, output, action_num, rd);
     }
 
-    inline FloatT GetTransDensityImpl(TypeErasedParticleRef from,
-                               TypeErasedParticleRef to) const override {
+    inline void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output) const override {
+        size_t action_num = agent_policy_->React(from);
+        conditioned_kernel_->EvolveConditionally(from, output, action_num);
+    }
+
+    inline FloatT GetTransDensity(TypeErasedParticleRef from,
+                                  TypeErasedParticleRef to) const override {
         size_t action_num = agent_policy_->React(from);
         return conditioned_kernel_->GetTransDensityConditionally(from, to, action_num);
     }
+
+private:
 
     std::unique_ptr<IActionConditionedKernel> conditioned_kernel_;
     IAgentPolicy* agent_policy_{nullptr};

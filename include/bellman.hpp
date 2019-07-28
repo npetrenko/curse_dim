@@ -27,7 +27,7 @@ public:
 
     size_t React(size_t state_index) const override {
         return ReactHelper(
-            [this, state_index, memory_view = qfunc_estimate_.ValueAtIndex(state_index)](
+            [memory_view = qfunc_estimate_.ValueAtIndex(state_index)](
                 size_t action_num) { return memory_view[action_num]; });
     }
 

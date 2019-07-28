@@ -32,7 +32,7 @@ public:
     virtual ~ICondKernel() = default;
 };
 
-class RNGKernel : public EnableCloneInterface<RNGKernel, InheritFrom<IKernel>> {
+class RNGKernel : public EnableCloneInterface<RNGKernel, InheritFromVirtual<IKernel>> {
 public:
     RNGKernel() = default;
 
@@ -63,7 +63,7 @@ private:
 };
 
 class ConditionedRNGKernel
-    : public EnableCloneInterface<ConditionedRNGKernel, InheritFrom<ICondKernel>> {
+    : public EnableCloneInterface<ConditionedRNGKernel, InheritFromVirtual<ICondKernel>> {
 public:
     ConditionedRNGKernel() = default;
 

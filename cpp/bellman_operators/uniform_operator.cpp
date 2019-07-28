@@ -1,31 +1,34 @@
 #include <include/bellman_operators/uniform_operator.hpp>
 #include <include/types.hpp>
 
-UniformBellmanOperator UniformBellmanOperator::Builder::Build() && {
+UniformBellmanOperator UniformBellmanOperator::Builder::BuildImpl() && {
     UniformBellmanOperator op;
-    op.env_params_ = std::move(env_params_);
-    op.radius_ = init_radius_;
-    op.random_device_ = random_device_;
+    op.env_params_ = std::move(env_params_.value());
+    op.radius_ = init_radius_.value();
+    op.random_device_ = random_device_.value();
     op.additional_weights_ =
-        Matrix({static_cast<MatrixDims::value_type>(num_particles_),
-                static_cast<MatrixDims::value_type>(env_params_.ac_kernel->GetNumActions())});
+        Matrix({static_cast<MatrixDims::value_type>(num_particles_.value()),
+                static_cast<MatrixDims::value_type>(op.env_params_.ac_kernel->GetNumActions())});
 
-    op.qfunc_primary_ = DiscreteQFuncEst{num_particles_, env_params_.ac_kernel->GetNumActions()};
-    op.qfunc_secondary_ = DiscreteQFuncEst{num_particles_, env_params_.ac_kernel->GetNumActions()};
-    std::uniform_real_distribution<FloatT> distr{-init_radius_, init_radius_};
+    op.qfunc_primary_ =
+        DiscreteQFuncEst{num_particles_.value(), op.env_params_.ac_kernel->GetNumActions()};
+    op.qfunc_secondary_ =
+        DiscreteQFuncEst{num_particles_.value(), op.env_params_.ac_kernel->GetNumActions()};
+    std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
     RandomVectorizingInitializer<MemoryView, decltype(distr), std::mt19937> initializer{
-        env_params_.ac_kernel->GetSpaceDim(), random_device_, distr};
+        op.env_params_.ac_kernel->GetSpaceDim(), random_device_.value(), distr};
 
-    op.qfunc_primary_.SetParticleCluster(ParticleCluster{num_particles_, initializer});
+    op.qfunc_primary_.SetParticleCluster(ParticleCluster{num_particles_.value(), initializer});
     {
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
-        op.qfunc_primary_.SetRandom(random_device_, q_init);
-        op.qfunc_secondary_.SetRandom(random_device_, q_init);
+        op.qfunc_primary_.SetRandom(random_device_.value(), q_init);
+        op.qfunc_secondary_.SetRandom(random_device_.value(), q_init);
     }
 
     op.NormalizeWeights();
     {
-        FloatT weight = pow(1 / (2 * init_radius_), op.env_params_.ac_kernel->GetSpaceDim());
+        FloatT weight =
+            pow(1 / (2 * init_radius_.value()), op.env_params_.ac_kernel->GetSpaceDim());
         op.sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(
             op.qfunc_primary_.GetParticleCluster(), weight);
     }

@@ -47,7 +47,7 @@ void MakeWeighingUsual(const RNGKernel& kernel, VectorWeightedParticleCluster* c
     });
 }
 
-void MakeWeighingHintable(const HintableKernel& hintable_kernel,
+void MakeWeighingHintable(const IHintableKernel& hintable_kernel,
                           VectorWeightedParticleCluster* cluster) {
     using HintT = decltype(hintable_kernel.CalculateHint((*cluster)[0]));
     std::vector<HintT> hints(cluster->size());
@@ -70,7 +70,7 @@ void MakeWeighingHintable(const HintableKernel& hintable_kernel,
 }  // namespace
 
 void StationaryDensityEstimator::MakeWeighing() {
-    if (auto hintable_ptr = dynamic_cast<HintableKernel*>(kernel_)) {
+    if (auto hintable_ptr = dynamic_cast<IHintableKernel*>(kernel_)) {
         MakeWeighingHintable(*hintable_ptr, &cluster_);
     } else {
         MakeWeighingUsual(*kernel_, &cluster_);

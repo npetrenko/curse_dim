@@ -138,6 +138,8 @@ class Kernel final : public EnableClone<Kernel<direction>, InheritFrom<RNGKernel
     using BaseT = EnableClone<Kernel<direction>, InheritFrom<RNGKernel>>;
 
 public:
+    Kernel() = delete;
+
     Kernel(std::mt19937* random_device) noexcept : BaseT{random_device} {
     }
 
@@ -180,7 +182,6 @@ private:
 
         return {travel_down, travel_up};
     }
-    std::mt19937* rd_;
 };
 
 struct RewardFunc {
@@ -231,7 +232,7 @@ TEST(Probability, SimpleModelKernelSummsToOne) {
 
 TEST(StationaryEstim, SimpleModel) {
     std::mt19937 rd{423};
-    const size_t kClusterSize{4096};
+    const size_t kClusterSize{4096*4};
     SimpleModel::Kernel<0> kernel{&rd};
 
     std::uniform_real_distribution<FloatT> init_distr{0., 0.2};

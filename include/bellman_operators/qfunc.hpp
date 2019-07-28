@@ -73,7 +73,7 @@ public:
           importance_func_{std::move(importance_func)} {
     }
 
-    size_t NumActions() const {
+    size_t NumActions() const override {
         return discrete_est_.NumActions();
     }
 

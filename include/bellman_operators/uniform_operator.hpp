@@ -48,6 +48,8 @@ private:
 
 class UniformBellmanOperator::Builder
     : public AbstractBellmanOperator::Builder<UniformBellmanOperator::Builder> {
+    friend class AbstractBellmanOperator::Builder<UniformBellmanOperator::Builder>;
+
 public:
     Builder() = default;
 
@@ -56,9 +58,9 @@ public:
 	return *this;
     }
 
-    UniformBellmanOperator Build() &&;
-
 private:
-    FloatT init_radius_;
+    UniformBellmanOperator BuildImpl() &&;
+
+    std::optional<FloatT> init_radius_;
 };
 
