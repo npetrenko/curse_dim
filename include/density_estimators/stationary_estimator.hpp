@@ -8,7 +8,7 @@
 #include "../type_traits.hpp"
 #include "weighted_particle_clusters.hpp"
 
-#include "../thread_pool/include/for_loop.hpp"
+#include <thread_pool/include/for_loop.hpp>
 
 #include <glog/logging.h>
 

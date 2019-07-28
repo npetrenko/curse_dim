@@ -7,7 +7,7 @@
 
 #include <optional>
 
-#include "../../thread_pool/include/for_loop.hpp"
+#include <thread_pool/include/for_loop.hpp>
 
 class DiscreteQFuncEst final : public EnableClone<DiscreteQFuncEst, InheritFrom<IQFuncEstimate>> {
 public:
