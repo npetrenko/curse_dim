@@ -116,9 +116,10 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
                                               // should be previous density here
                                               prev_sample_reweighing};
     GreedyPolicy policy{current_qfunc_estimator};
-    MDPKernel mdp_kernel{*GetEnvParams().ac_kernel.get(), &policy};
+    IMDPKernel* mdp_kernel = GetEnvParams().mdp_kernel.get();
+    mdp_kernel->ResetPolicy(&policy);
 
-    density_estimator_->ResetKernel(&mdp_kernel);
+    density_estimator_->ResetKernel(mdp_kernel);
 
     LOG(INFO) << "Making stationary iterations";
     density_estimator_->MakeIteration(num_iterations, GetRD());
@@ -142,7 +143,7 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
         qfunc_primary_ = std::move(new_estimate);
     }
 
-    mdp_kernel.ResetPolicy(nullptr);
+    mdp_kernel->ResetPolicy(nullptr);
     density_estimator_->ResetKernel(nullptr);
     prev_sampling_distribution_ = std::make_unique<VectorWeightedParticleCluster>(invariant_distr);
 

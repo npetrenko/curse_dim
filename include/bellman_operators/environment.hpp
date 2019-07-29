@@ -8,7 +8,10 @@ struct EnvParams {
 
     EnvParams() = default;
 
-    EnvParams(const IActionConditionedKernel& kernel, RewardFuncT reward, FloatT gamma);
+    template <class ACKernel>
+    EnvParams(const ACKernel& kernel, RewardFuncT reward, FloatT gamma) : ac_kernel(kernel.Clone()), reward_function(std::move(reward)), kGamma(gamma) {
+	mdp_kernel = std::make_unique<MDPKernel<ACKernel>>(kernel, nullptr);
+    }
 
     EnvParams(const EnvParams& other);
 
@@ -19,6 +22,7 @@ struct EnvParams {
     EnvParams& operator=(const EnvParams& other);
 
     std::unique_ptr<IActionConditionedKernel> ac_kernel;
+    std::unique_ptr<IMDPKernel> mdp_kernel;
     RewardFuncT reward_function;
     FloatT kGamma;
 };
