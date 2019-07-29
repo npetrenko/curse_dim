@@ -35,12 +35,12 @@ public:
 
 private:
     struct Params {
-	FloatT init_radius;
+        FloatT init_radius;
     };
 
     const Params kParams;
 
-    UniformBellmanOperator(AbstractBellmanOperator::Params&&, Params&&); 
+    UniformBellmanOperator(AbstractBellmanOperator::Params&&, Params&&);
     void NormalizeWeights();
 
     Matrix<std::vector<FloatT>> additional_weights_;
@@ -58,12 +58,11 @@ public:
 
     inline Builder& SetInitRadius(FloatT init_radius) {
         init_radius_ = init_radius;
-	return *this;
+        return *this;
     }
 
 private:
-    UniformBellmanOperator BuildImpl(AbstractBellmanOperator::Params&&) &&;
+    std::unique_ptr<UniformBellmanOperator> BuildImpl(AbstractBellmanOperator::Params&&) &&;
 
     std::optional<FloatT> init_radius_;
 };
-

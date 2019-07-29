@@ -1,3 +1,4 @@
+/*
 #include <src/types.hpp>
 #include <main/pendulum.hpp>
 #include <src/bellman_operators/uniform_operator.hpp>
@@ -32,3 +33,4 @@ void RunUniformExperiment(size_t num_particles, size_t num_iterations, size_t nu
         ASSERT_TRUE(state[0]);
     }
 }
+*/

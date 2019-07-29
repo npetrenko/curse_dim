@@ -36,7 +36,7 @@ private:
     struct Params {
         FloatT invariant_density_threshold;
         FloatT density_ratio_threshold;
-	FloatT init_radius;
+        FloatT init_radius;
     };
 
     const Params kParams;
@@ -77,7 +77,8 @@ public:
     }
 
 private:
-    StationaryBellmanOperator BuildImpl(AbstractBellmanOperator::Params&& params);
+    std::unique_ptr<StationaryBellmanOperator> BuildImpl(AbstractBellmanOperator::Params&& params);
+
     std::optional<FloatT> init_radius_;
     std::optional<FloatT> invariant_density_threshold_;
     std::optional<FloatT> density_ratio_threshold_;

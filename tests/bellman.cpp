@@ -269,24 +269,27 @@ TEST(StationaryEstim, SimpleModel) {
 
 TEST(UniformBellman, SimpleModel) {
     std::mt19937 rd{1234};
+    std::unique_ptr<UniformBellmanOperator> bellman_op;
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
 
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    UniformBellmanOperator::Builder builder;
-    builder.SetEnvParams(env_params)
-        .SetInitRadius(1.)
-        .SetRandomDevice(&rd)
-        .SetNumParticles(2048)
-        .SetGamma(0.95);
-    auto bellman_op = std::move(builder).Build();
-
-    for (int i = 0; i < 20; ++i) {
-        bellman_op.MakeIteration();
+    {
+        UniformBellmanOperator::Builder builder;
+        builder.SetEnvParams(env_params)
+            .SetInitRadius(1.)
+            .SetRandomDevice(&rd)
+            .SetNumParticles(2048)
+            .SetGamma(0.95);
+        bellman_op = std::move(builder).Build();
     }
 
-    QFuncEstForGreedy qfunc_est{env_params, bellman_op.GetQFunc(),
+    for (int i = 0; i < 20; ++i) {
+        bellman_op->MakeIteration();
+    }
+
+    QFuncEstForGreedy qfunc_est{env_params, bellman_op->GetQFunc(),
                                 // Correction for importance sampling
                                 [](auto) { return 2.; }};
     GreedyPolicy policy{qfunc_est};
@@ -310,23 +313,27 @@ TEST(StationaryBellmanOperator, SimpleModel) {
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
     EnvParams env_params{action_conditioned_kernel, SimpleModel::RewardFunc{}, 0.95};
 
-    StationaryBellmanOperator::Builder builder;
-    builder.SetEnvParams(env_params)
-        .SetNumParticles(2048)
-        .SetDensityRatioThreshold(100.)
-        .SetInitRadius(1.)
-        .SetInvariantDensityThreshold(1e-3)
-        .SetNumBurninIter(1)
-        .SetGamma(0.95)
-        .SetRandomDevice(&rd);
+    std::unique_ptr<StationaryBellmanOperator> bellman_op;
+    {
+        StationaryBellmanOperator::Builder builder;
+        builder.SetEnvParams(env_params)
+            .SetNumParticles(2048)
+            .SetDensityRatioThreshold(100.)
+            .SetInitRadius(1.)
+            .SetInvariantDensityThreshold(1e-3)
+            .SetNumBurninIter(1)
+            .SetGamma(0.95)
+            .SetRandomDevice(&rd);
 
-    StationaryBellmanOperator bellman_op = std::move(builder).Build();
-    for (int i = 0; i < 20; ++i) {
-        bellman_op.MakeIteration();
+        bellman_op = std::move(builder).Build();
     }
 
-    PrevSampleReweighingHelper rew_helper{&bellman_op.GetSamplingDistribution(), std::nullopt};
-    QFuncEstForGreedy qfunc_est{env_params, bellman_op.GetQFunc(), rew_helper};
+    for (int i = 0; i < 20; ++i) {
+        bellman_op->MakeIteration();
+    }
+
+    PrevSampleReweighingHelper rew_helper{&bellman_op->GetSamplingDistribution(), std::nullopt};
+    QFuncEstForGreedy qfunc_est{env_params, bellman_op->GetQFunc(), rew_helper};
 
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};

@@ -32,5 +32,6 @@ add_executable(tests "${TEST_DIR}/bellman.cpp" "${TEST_DIR}/storage.cpp" "${TEST
 target_link_libraries(tests bellman gtest_main gtest glog::glog)
 add_test(tests tests)
 
-#add_executable(main "${MAIN_DIR}/main.cpp")
-#target_link_libraries(main bellman)
+file(GLOB_RECURSE MAIN_SOURCES "${MAIN_DIR}/*.cpp")
+add_executable(main ${MAIN_SOURCES})
+target_link_libraries(main bellman)

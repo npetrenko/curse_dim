@@ -71,7 +71,8 @@ private:
         TypeErasedParticlePtr to;
         std::mt19937* rd;
 
-        inline void operator()(const RNGKernel& kernel) {
+	template <class KerT>
+        inline void operator()(const KerT& kernel) {
             if constexpr (needs_rd) {
                 kernel.Evolve(from, to, rd);
             } else {
@@ -85,7 +86,8 @@ private:
         TypeErasedParticleRef to;
         FloatT& result;
 
-        inline void operator()(const RNGKernel& kernel) {
+	template <class KerT>
+        inline void operator()(const KerT& kernel) {
             result = kernel.GetTransDensity(from, to);
         }
     };

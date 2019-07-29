@@ -5,13 +5,13 @@
 
 int main() {
     std::mt19937 rd{1234};
-    const size_t kNumPendulums = 10;
-    const size_t kNumParticles = 1024;
+    constexpr size_t kNumPendulums = 10;
     ActionConditionedKernel ac_kernel{Pendulum::Kernel<-1>{kNumPendulums, &rd},
                                       Pendulum::Kernel<0>{kNumPendulums, &rd},
                                       Pendulum::Kernel<1>{kNumPendulums, &rd}};
     EnvParams env_params{ac_kernel, Pendulum::RewardFunc{}, 0.95};
-    UniformBellmanOperator bellman_op{env_params, kNumParticles, 1., &rd};
-    bellman_op.MakeIteration();
+
+    UniformBellmanOperator::Builder builder;
+    builder.SetEnvParams(env_params).SetGamma(0.95).SetNumParticles(1024).SetRandomDevice(&rd);
     return 0;
 }
