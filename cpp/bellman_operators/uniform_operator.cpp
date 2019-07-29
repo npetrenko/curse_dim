@@ -48,14 +48,13 @@ void UniformBellmanOperator::MakeIteration() {
     auto& ac_kernel = env_params_.ac_kernel;
 
     ParallelFor{0, cluster.size(), 32}([&](size_t i) {
-        for (size_t action_number = 0; action_number < ac_kernel->GetNumActions();
-             ++action_number) {
+        auto num_actions = ac_kernel->GetNumActions();
+        for (size_t action_number = 0; action_number < num_actions; ++action_number) {
             qfunc_secondary_.ValueAtIndex(i)[action_number] =
                 env_params_.reward_function(cluster[i], action_number);
         }
         for (size_t j = 0; j < cluster.size(); ++j) {
-            for (size_t action_number = 0; action_number < ac_kernel->GetNumActions();
-                 ++action_number) {
+            for (size_t action_number = 0; action_number < num_actions; ++action_number) {
                 size_t reaction = policy.React(j);
                 FloatT density =
                     ac_kernel->GetTransDensityConditionally(cluster[i], cluster[j], action_number);
@@ -72,8 +71,8 @@ void UniformBellmanOperator::MakeIteration() {
 
 void UniformBellmanOperator::NormalizeWeights() {
     auto& cluster = qfunc_primary_.GetParticleCluster();
-    for (size_t action_number = 0; action_number < env_params_.ac_kernel->GetNumActions();
-         ++action_number) {
+    auto num_actions = env_params_.ac_kernel->GetNumActions();
+    for (size_t action_number = 0; action_number < num_actions; ++action_number) {
         ParallelFor{0, cluster.size(), 1}([&](size_t i) {
             FloatT sum = 0;
             for (size_t j = 0; j < cluster.size(); ++j) {

@@ -37,9 +37,9 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
 
 namespace {
 void MakeWeighingUsual(const RNGKernel& kernel, VectorWeightedParticleCluster* cluster) {
-    ParallelFor{0, cluster->size(), 1}([&](size_t i) {
+    ParallelFor{0, cluster->size(), 1}([&, weights = cluster->GetMutableWeights()](size_t i) {
         const auto& particle = (*cluster)[i];
-        FloatT& particle_weight = cluster->GetMutableWeights()[i];
+        FloatT& particle_weight = weights[i];
         particle_weight = 0;
         for (const auto& from_particle : *cluster) {
             particle_weight += kernel.GetTransDensity(from_particle, particle) / cluster->size();
@@ -54,9 +54,9 @@ void MakeWeighingHintable(const IHintableKernel& hintable_kernel,
     ParallelFor{0, cluster->size(),
                 1}([&](size_t i) { hints[i] = hintable_kernel.CalculateHint((*cluster)[i]); });
 
-    ParallelFor{0, cluster->size(), 1}([&](size_t i) {
+    ParallelFor{0, cluster->size(), 1}([&, weights = cluster->GetMutableWeights()](size_t i) {
         const auto& particle = (*cluster)[i];
-        FloatT& particle_weight = cluster->GetMutableWeights()[i];
+        FloatT& particle_weight = weights[i];
         particle_weight = 0;
         for (size_t from_ix = 0; from_ix < cluster->size(); ++from_ix) {
             const auto& from_particle = (*cluster)[from_ix];
