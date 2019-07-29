@@ -15,8 +15,10 @@
 #include <functional>
 
 class IActionConditionedKernel
-    : public EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>> {
-    using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>>;
+    : public EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>,
+                                  DynamicCastTag> {
+    using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>,
+                                       DynamicCastTag>;
 
 public:
     using BaseT::BaseT;
@@ -26,7 +28,7 @@ public:
 template <class... Kernels>
 class ActionConditionedKernel final
     : public EnableClone<ActionConditionedKernel<Kernels...>,
-                         InheritFromVirtual<IActionConditionedKernel>> {
+                         InheritFromVirtual<IActionConditionedKernel>, DynamicCastTag> {
 public:
     ActionConditionedKernel(const ActionConditionedKernel&) = default;
     ActionConditionedKernel(ActionConditionedKernel&&) = default;
@@ -98,7 +100,8 @@ private:
     std::tuple<Kernels...> fixed_action_kernels_;
 };
 
-class IHintableKernel : public EnableCloneInterface<IHintableKernel, InheritFromVirtual<IKernel>> {
+class IHintableKernel
+    : public EnableCloneInterface<IHintableKernel, InheritFromVirtual<IKernel>, DynamicCastTag> {
 public:
     using HintT = size_t;
 
@@ -110,7 +113,7 @@ public:
 template <class BaseKernel>
 class HintableKernel
     : public EnableCloneInterface<HintableKernel<BaseKernel>,
-                                  InheritFromVirtual<IHintableKernel, BaseKernel>> {
+                                  InheritFromVirtual<IHintableKernel, BaseKernel>, DynamicCastTag> {
     using BaseT =
         EnableCloneInterface<HintableKernel<BaseKernel>, InheritFrom<IHintableKernel, BaseKernel>>;
 
@@ -121,7 +124,8 @@ public:
     }
 };
 
-class IMDPKernel : public EnableCloneInterface<IMDPKernel, InheritFromVirtual<IHintableKernel>> {
+class IMDPKernel
+    : public EnableCloneInterface<IMDPKernel, InheritFromVirtual<IHintableKernel>, DynamicCastTag> {
 public:
     virtual void ResetPolicy(IAgentPolicy* policy) = 0;
 };
