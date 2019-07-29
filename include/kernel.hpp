@@ -14,8 +14,10 @@
 #include <exception>
 #include <functional>
 
-class IActionConditionedKernel : public EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>> {
+class IActionConditionedKernel
+    : public EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>> {
     using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>>;
+
 public:
     using BaseT::BaseT;
     virtual size_t GetNumActions() const = 0;
@@ -23,7 +25,8 @@ public:
 
 template <class... Kernels>
 class ActionConditionedKernel final
-    : public EnableClone<ActionConditionedKernel<Kernels...>, InheritFromVirtual<IActionConditionedKernel>> {
+    : public EnableClone<ActionConditionedKernel<Kernels...>,
+                         InheritFromVirtual<IActionConditionedKernel>> {
 public:
     ActionConditionedKernel(const ActionConditionedKernel&) = default;
     ActionConditionedKernel(ActionConditionedKernel&&) = default;
@@ -45,13 +48,13 @@ public:
     }
 
     void EvolveConditionally(TypeErasedParticleRef from, TypeErasedParticlePtr output,
-                                 size_t action_number) const override {
+                             size_t action_number) const override {
         EvolveHelper<false> helper{from, output, nullptr};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
     }
 
     void EvolveConditionally(TypeErasedParticleRef from, TypeErasedParticlePtr output,
-                                 size_t action_number, std::mt19937* rd) const override {
+                             size_t action_number, std::mt19937* rd) const override {
         EvolveHelper<true> helper{from, output, rd};
         CallOnTupleIx(std::move(helper), fixed_action_kernels_, action_number);
     }
@@ -71,13 +74,13 @@ private:
         TypeErasedParticlePtr to;
         std::mt19937* rd;
 
-	template <class KerT>
+        template <class KerT>
         inline void operator()(const KerT& kernel) {
             if constexpr (needs_rd) {
                 kernel.Evolve(from, to, rd);
             } else {
-		kernel.Evolve(from, to);
-	    }
+                kernel.Evolve(from, to);
+            }
         }
     };
 
@@ -86,7 +89,7 @@ private:
         TypeErasedParticleRef to;
         FloatT& result;
 
-	template <class KerT>
+        template <class KerT>
         inline void operator()(const KerT& kernel) {
             result = kernel.GetTransDensity(from, to);
         }
@@ -105,8 +108,11 @@ public:
 };
 
 template <class BaseKernel>
-class HintableKernel : public EnableCloneInterface<HintableKernel<BaseKernel>, InheritFromVirtual<IHintableKernel, BaseKernel>> {
-    using BaseT = EnableCloneInterface<HintableKernel<BaseKernel>, InheritFrom<IHintableKernel, BaseKernel>>;
+class HintableKernel
+    : public EnableCloneInterface<HintableKernel<BaseKernel>,
+                                  InheritFromVirtual<IHintableKernel, BaseKernel>> {
+    using BaseT =
+        EnableCloneInterface<HintableKernel<BaseKernel>, InheritFrom<IHintableKernel, BaseKernel>>;
 
 public:
     HintableKernel() = default;
@@ -115,16 +121,63 @@ public:
     }
 };
 
-class MDPKernel final : public EnableClone<MDPKernel, InheritFrom<HintableKernel<IKernel>>> {
+class IMDPKernel : public EnableCloneInterface<IMDPKernel, InheritFromVirtual<IHintableKernel>> {
 public:
-    MDPKernel(const IActionConditionedKernel& action_conditioned_kernel,
-              IAgentPolicy* agent_policy)
-        : conditioned_kernel_{action_conditioned_kernel.Clone()}, agent_policy_{agent_policy} {
+    virtual void ResetPolicy(IAgentPolicy* policy) = 0;
+};
+
+template <class ACKernel, bool is_abstract = std::is_abstract_v<ACKernel>>
+struct _ImplKernelHolder;
+
+template <class ACKernel>
+struct _ImplKernelHolder<ACKernel, false> {
+    const ACKernel& Get() const {
+        return kernel_;
     }
 
-    MDPKernel(const MDPKernel& other) {
-	conditioned_kernel_ = other.conditioned_kernel_->Clone();
-	agent_policy_ = other.agent_policy_;
+    ACKernel kernel_;
+};
+
+template <class ACKernel>
+struct _ImplKernelHolder<ACKernel, true> {
+    _ImplKernelHolder(const ACKernel& ker) : kernel_(ker.Clone()) {
+    }
+
+    _ImplKernelHolder(const _ImplKernelHolder& other) : kernel_(other.kernel_->Clone()) {
+    }
+
+    _ImplKernelHolder(_ImplKernelHolder&& other) = default;
+
+    _ImplKernelHolder& operator=(const _ImplKernelHolder& other) {
+        kernel_ = other.kernel_.Clone();
+    }
+
+    _ImplKernelHolder& operator=(_ImplKernelHolder&& other) = default;
+
+    const ACKernel& Get() const {
+        return *kernel_;
+    }
+
+    std::unique_ptr<ACKernel> kernel_;
+};
+
+template <class ACKernel>
+using KernelHolder = _ImplKernelHolder<ACKernel>;
+
+template <class ACKernel>
+class MDPKernel final
+    : public EnableClone<MDPKernel<ACKernel>, InheritFrom<IMDPKernel, HintableKernel<IKernel>>> {
+private:
+public:
+    using HintT = size_t;
+
+    MDPKernel(const ACKernel& action_conditioned_kernel, IAgentPolicy* agent_policy)
+        : conditioned_kernel_holder_{action_conditioned_kernel}, agent_policy_{agent_policy} {
+    }
+
+    MDPKernel(const MDPKernel& other)
+        : conditioned_kernel_holder_(other.conditioned_kernel_holder_) {
+        agent_policy_ = other.agent_policy_;
     }
 
     MDPKernel(MDPKernel&&) = default;
@@ -132,17 +185,17 @@ public:
     MDPKernel& operator=(MDPKernel&&) = default;
 
     MDPKernel& operator=(const MDPKernel& other) {
-	conditioned_kernel_ = other.conditioned_kernel_->Clone();
-	agent_policy_ = other.agent_policy_;
-	return *this;
+        conditioned_kernel_holder_ = other.conditioned_kernel_holder_;
+        agent_policy_ = other.agent_policy_;
+        return *this;
     }
 
-    inline void ResetPolicy(IAgentPolicy* agent_policy) {
+    inline void ResetPolicy(IAgentPolicy* agent_policy) override {
         agent_policy_ = agent_policy;
     }
 
     inline size_t GetSpaceDim() const override {
-        return conditioned_kernel_->GetSpaceDim();
+        return conditioned_kernel_holder_.Get().GetSpaceDim();
     }
 
     inline HintT CalculateHint(TypeErasedParticleRef from) const override {
@@ -150,29 +203,28 @@ public:
     }
 
     inline FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to,
-                                   HintT* hint) const override {
-        return conditioned_kernel_->GetTransDensityConditionally(from, to, *hint);
+                                          HintT* hint) const override {
+        return conditioned_kernel_holder_.Get().GetTransDensityConditionally(from, to, *hint);
     }
 
     inline void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output,
-                    std::mt19937* rd) const override {
+                       std::mt19937* rd) const override {
         size_t action_num = agent_policy_->React(from);
-        conditioned_kernel_->EvolveConditionally(from, output, action_num, rd);
+        conditioned_kernel_holder_.Get().EvolveConditionally(from, output, action_num, rd);
     }
 
     inline void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output) const override {
         size_t action_num = agent_policy_->React(from);
-        conditioned_kernel_->EvolveConditionally(from, output, action_num);
+        conditioned_kernel_holder_.Get().EvolveConditionally(from, output, action_num);
     }
 
     inline FloatT GetTransDensity(TypeErasedParticleRef from,
                                   TypeErasedParticleRef to) const override {
         size_t action_num = agent_policy_->React(from);
-        return conditioned_kernel_->GetTransDensityConditionally(from, to, action_num);
+        return conditioned_kernel_holder_.Get().GetTransDensityConditionally(from, to, action_num);
     }
 
 private:
-
-    std::unique_ptr<const IActionConditionedKernel> conditioned_kernel_;
+    KernelHolder<ACKernel> conditioned_kernel_holder_;
     IAgentPolicy* agent_policy_{nullptr};
 };
