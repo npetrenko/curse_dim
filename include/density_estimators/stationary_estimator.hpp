@@ -33,18 +33,18 @@ public:
         return cluster_;
     }
 
-    inline const RNGKernel& GetKernel() const {
+    inline const IKernel& GetKernel() const {
         return *kernel_;
     }
 
-    inline void ResetKernel(RNGKernel* new_kernel) {
+    inline void ResetKernel(IKernel* new_kernel) {
         kernel_ = new_kernel;
     }
 
 private:
     void MakeWeighing();
 
-    RNGKernel* kernel_;
+    IKernel* kernel_;
     VectorWeightedParticleCluster cluster_;
     ParticleCluster secondary_cluster_;
 };

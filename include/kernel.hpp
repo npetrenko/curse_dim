@@ -171,6 +171,6 @@ public:
 
 private:
 
-    std::unique_ptr<IActionConditionedKernel> conditioned_kernel_;
+    std::unique_ptr<const IActionConditionedKernel> conditioned_kernel_;
     IAgentPolicy* agent_policy_{nullptr};
 };

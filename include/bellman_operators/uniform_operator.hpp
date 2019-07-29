@@ -34,12 +34,15 @@ public:
     }
 
 private:
-    UniformBellmanOperator() = default;
+    struct Params {
+	FloatT init_radius;
+    };
+
+    const Params kParams;
+
+    UniformBellmanOperator(AbstractBellmanOperator::Params&&, Params&&); 
     void NormalizeWeights();
 
-    EnvParams env_params_;
-    FloatT radius_;
-    std::mt19937* random_device_;
     Matrix<std::vector<FloatT>> additional_weights_;
 
     DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
@@ -59,7 +62,7 @@ public:
     }
 
 private:
-    UniformBellmanOperator BuildImpl() &&;
+    UniformBellmanOperator BuildImpl(AbstractBellmanOperator::Params&&) &&;
 
     std::optional<FloatT> init_radius_;
 };

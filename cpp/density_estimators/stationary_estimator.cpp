@@ -36,7 +36,7 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
 }
 
 namespace {
-void MakeWeighingUsual(const RNGKernel& kernel, VectorWeightedParticleCluster* cluster) {
+void MakeWeighingUsual(const IKernel& kernel, VectorWeightedParticleCluster* cluster) {
     ParallelFor{0, cluster->size(), 1}([&, weights = cluster->GetMutableWeights()](size_t i) {
         const auto& particle = (*cluster)[i];
         FloatT& particle_weight = weights[i];
