@@ -37,7 +37,7 @@ public:
     RNGKernel() = default;
 
     // Can only be instantiated if HasRNG == true
-    RNGKernel(std::mt19937* random_device) noexcept : this_rd_(random_device) {
+    explicit RNGKernel(std::mt19937* random_device) noexcept : this_rd_(random_device) {
     }
 
     inline void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output,

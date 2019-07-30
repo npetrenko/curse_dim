@@ -10,11 +10,11 @@ inline constexpr FloatT kResistance = 0.1;
 inline constexpr std::array<FloatT, 2> kNoiseStrength = {0.05, 0.05};
 
 template <int action_direction>
-class Kernel1D : public EnableClone<Kernel1D<action_direction>, InheritFrom<RNGKernel>> {
+class Kernel1D final : public EnableClone<Kernel1D<action_direction>, InheritFrom<RNGKernel>> {
     using BaseT = EnableClone<Kernel1D<action_direction>, InheritFrom<RNGKernel>>;
 
 public:
-    inline Kernel1D(std::mt19937* rd) : BaseT{rd} {
+    inline explicit Kernel1D(std::mt19937* rd) : BaseT{rd} {
     }
 
     inline size_t GetSpaceDim() const override {
@@ -34,7 +34,7 @@ private:
 };
 
 template <int action_direction>
-class Kernel : public EnableClone<Kernel<action_direction>, InheritFrom<IKernel>> {
+class Kernel final : public EnableClone<Kernel<action_direction>, InheritFrom<IKernel>> {
     using BaseT = EnableClone<Kernel<action_direction>, InheritFrom<IKernel>>;
 
 public:

@@ -53,7 +53,7 @@ void Kernel1D<action_direction>::ChechArgs(TypeErasedParticleRef particle) const
 
 template <int action_direction>
 Kernel<action_direction>::Kernel(size_t num_pendulums, std::mt19937* rd)
-    : BaseT(), pendulums_(num_pendulums, {rd}) {
+    : BaseT(), pendulums_(num_pendulums, Kernel1D<action_direction>{rd}) {
 }
 
 template <int action_direction>
@@ -109,7 +109,7 @@ void Kernel<action_direction>::CheckArgs(TypeErasedParticleRef part) const {
 FloatT RewardFunc::operator()(TypeErasedParticleRef state, size_t /*action*/) const {
     FloatT val = 1.;
     for (size_t i = 0; i < state.GetDim(); i += 2) {
-        val = std::min(state[i], val);
+        val = std::min(cos(state[i]), val);
     }
     return val;
 }
