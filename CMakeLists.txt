@@ -22,16 +22,37 @@ set(TEST_DIR "tests")
 set(CPP_DIR "cpp")
 set(MAIN_DIR "main")
 
-file(GLOB_RECURSE SOURCES "${CPP_DIR}/*.cpp")
+function(prepend var prefix)
+  set(listVar "")
+  foreach(f ${ARGN})
+    list(APPEND listVar "${prefix}/${f}")
+  endforeach(f)
+  set(${var} ${listVar} PARENT_SCOPE)
+endfunction()
+
+
+set(SOURCES particle.cpp
+  bellman_operators/abstract_bellman.cpp
+  bellman_operators/environment.cpp
+  bellman_operators/qfunc.cpp
+  bellman_operators/stationary_operator.cpp
+  bellman_operators/uniform_operator.cpp
+  density_estimators/stationary_estimator.cpp)
+prepend(SOURCES ${CPP_DIR} ${SOURCES})
 
 add_library(bellman ${SOURCES})
 target_include_directories(bellman PUBLIC .)
 target_link_libraries(bellman glog::glog thread_pool)
 
-add_executable(tests "${TEST_DIR}/bellman.cpp" "${TEST_DIR}/storage.cpp" "${TEST_DIR}/type_traits.cpp")
+
+set(TEST_SOURCES bellman.cpp storage.cpp type_traits.cpp)
+prepend(TEST_SOURCES ${TEST_DIR} ${TEST_SOURCES})
+add_executable(tests ${TEST_SOURCES})
 target_link_libraries(tests bellman gtest_main gtest glog::glog)
 add_test(tests tests)
 
-file(GLOB_RECURSE MAIN_SOURCES "${MAIN_DIR}/*.cpp")
+
+set(MAIN_SOURCES main.cpp pendulum.cpp uniform_experiment.cpp)
+prepend(MAIN_SOURCES ${MAIN_DIR} ${MAIN_SOURCES})
 add_executable(main ${MAIN_SOURCES})
 target_link_libraries(main bellman)

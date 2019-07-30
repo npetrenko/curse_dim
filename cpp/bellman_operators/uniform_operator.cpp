@@ -68,7 +68,7 @@ void UniformBellmanOperator::MakeIteration() {
                 FloatT density =
                     ac_kernel->GetTransDensityConditionally(cluster[i], cluster[j], action_number);
                 qfunc_secondary_.ValueAtIndex(i)[action_number] +=
-                    GetEnvParams().kGamma * density * qfunc_primary_.ValueAtIndex(j)[reaction] *
+                    GetEnvParams().gamma * density * qfunc_primary_.ValueAtIndex(j)[reaction] *
                     additional_weights_(i, action_number) / cluster.size();
             }
         }

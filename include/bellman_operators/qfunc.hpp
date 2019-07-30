@@ -66,8 +66,7 @@ class QFuncEstForGreedy
 public:
     QFuncEstForGreedy() = default;
 
-    QFuncEstForGreedy(EnvParams env_params, DiscreteQFuncEst dqf,
-                      ImportanceFuncT importance_func)
+    QFuncEstForGreedy(EnvParams env_params, DiscreteQFuncEst dqf, ImportanceFuncT importance_func)
         : env_params_{std::move(env_params)},
           discrete_est_{std::move(dqf)},
           importance_func_{std::move(importance_func)} {
@@ -111,7 +110,7 @@ public:
 
             size_t next_state_reaction = greedy_policy.React(next_state_index);
 
-            result += env_params_.kGamma * weight *
+            result += env_params_.gamma * weight *
                       this->ValueAtIndex(next_state_index)[next_state_reaction];
         }
 
@@ -121,9 +120,9 @@ public:
     }
 
 private:
-    EnvParams env_params_;
+    const EnvParams env_params_;
     DiscreteQFuncEst discrete_est_;
-    ImportanceFuncT importance_func_;
+    const ImportanceFuncT importance_func_;
 };
 
 std::ostream& operator<<(std::ostream& stream, const DiscreteQFuncEst& est);

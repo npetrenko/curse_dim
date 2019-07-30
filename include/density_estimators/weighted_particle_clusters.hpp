@@ -10,8 +10,8 @@ public:
         : ParticleCluster{std::move(cluster)} {
     }
 
-    virtual ConstStridedMemoryView GetWeights() const = 0;
-    virtual StridedMemoryView GetMutableWeights() = 0;
+    virtual ConstStridedMemoryView IGetWeights() const = 0;
+    virtual StridedMemoryView IGetMutableWeights() = 0;
     virtual ~AbstractWeightedParticleCluster() = default;
 };
 
@@ -23,11 +23,19 @@ public:
         : AbstractWeightedParticleCluster{size, initializer}, weights_(size) {
     }
 
-    inline ConstStridedMemoryView GetWeights() const override {
+    inline ConstStridedMemoryView IGetWeights() const override {
+        return GetWeights();
+    }
+
+    inline StridedMemoryView IGetMutableWeights() override {
+        return GetMutableWeights();
+    }
+
+    inline ConstMemoryView GetWeights() const {
         return ConstMemoryView{weights_.data(), weights_.size()};
     }
 
-    inline StridedMemoryView GetMutableWeights() override {
+    inline MemoryView GetMutableWeights() {
         return MemoryView{weights_.data(), weights_.size()};
     }
 
@@ -50,12 +58,20 @@ public:
           weighing_constant_{weighing_constant} {
     }
 
-    inline StridedMemoryView GetMutableWeights() override {
+    inline StridedMemoryView IGetMutableWeights() override {
+	return GetMutableWeights();
+    }
+
+    inline ConstStridedMemoryView IGetWeights() const override {
+	return GetWeights();
+    }
+
+    inline StridedMemoryView GetMutableWeights() {
         throw std::runtime_error(
             "GetMutableWeights for ConstantWeightedParticleCluster makes no sense");
     }
 
-    inline ConstStridedMemoryView GetWeights() const override {
+    inline ConstStridedMemoryView GetWeights() const {
         return {&weighing_constant_, this->size(), 0};
     }
 

@@ -12,6 +12,6 @@ int main() {
     EnvParams env_params{ac_kernel, Pendulum::RewardFunc{}, 0.95};
 
     UniformBellmanOperator::Builder builder;
-    builder.SetEnvParams(env_params).SetGamma(0.95).SetNumParticles(1024).SetRandomDevice(&rd);
+    builder.SetEnvParams(env_params).SetNumParticles(1024).SetRandomDevice(&rd);
     return 0;
 }

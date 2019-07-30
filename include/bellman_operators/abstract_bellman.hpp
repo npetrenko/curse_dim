@@ -21,7 +21,6 @@ protected:
         size_t num_particles;
         std::mt19937* random_device;
         EnvParams env_params;
-        FloatT gamma;
     };
 
     inline size_t GetNumParticles() const {
@@ -37,7 +36,7 @@ protected:
     }
 
     inline FloatT GetGamma() const {
-        return kParams.gamma;
+        return kParams.env_params.gamma;
     }
 
 protected:
@@ -67,15 +66,10 @@ public:
         return *this->GetDerived();
     }
 
-    Derived& SetGamma(FloatT value) {
-        gamma_ = value;
-        return *this->GetDerived();
-    }
-
     auto Build() && {
         try {
             Params params{num_particles_.value(), random_device_.value(),
-                          std::move(env_params_.value()), gamma_.value()};
+                          std::move(env_params_.value())};
             return static_cast<Derived&&>(*this).BuildImpl(std::move(params));
         } catch (std::bad_optional_access& e) {
             throw BuilderNotInitialized();
@@ -86,7 +80,6 @@ protected:
     std::optional<EnvParams> env_params_;
     std::optional<std::mt19937*> random_device_;
     std::optional<size_t> num_particles_;
-    std::optional<FloatT> gamma_;
 };
 
 template <class WPCType>

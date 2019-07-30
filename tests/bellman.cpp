@@ -280,8 +280,7 @@ TEST(UniformBellman, SimpleModel) {
         builder.SetEnvParams(env_params)
             .SetInitRadius(1.)
             .SetRandomDevice(&rd)
-            .SetNumParticles(2048)
-            .SetGamma(0.95);
+            .SetNumParticles(2048);
         bellman_op = std::move(builder).Build();
     }
 
@@ -322,7 +321,7 @@ TEST(StationaryBellmanOperator, SimpleModel) {
             .SetInitRadius(1.)
             .SetInvariantDensityThreshold(1e-3)
             .SetNumBurninIter(1)
-            .SetGamma(0.95)
+
             .SetRandomDevice(&rd);
 
         bellman_op = std::move(builder).Build();

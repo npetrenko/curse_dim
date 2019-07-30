@@ -15,10 +15,8 @@
 #include <functional>
 
 class IActionConditionedKernel
-    : public EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>,
-                                  DynamicCastTag> {
-    using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFromVirtual<ICondKernel>,
-                                       DynamicCastTag>;
+    : public EnableCloneInterface<IActionConditionedKernel, InheritFrom<ICondKernel>> {
+    using BaseT = EnableCloneInterface<IActionConditionedKernel, InheritFrom<ICondKernel>>;
 
 public:
     using BaseT::BaseT;
@@ -26,9 +24,8 @@ public:
 };
 
 template <class... Kernels>
-class ActionConditionedKernel final
-    : public EnableClone<ActionConditionedKernel<Kernels...>,
-                         InheritFromVirtual<IActionConditionedKernel>, DynamicCastTag> {
+class ActionConditionedKernel final : public EnableClone<ActionConditionedKernel<Kernels...>,
+                                                         InheritFrom<IActionConditionedKernel>> {
 public:
     ActionConditionedKernel(const ActionConditionedKernel&) = default;
     ActionConditionedKernel(ActionConditionedKernel&&) = default;
@@ -100,8 +97,7 @@ private:
     std::tuple<Kernels...> fixed_action_kernels_;
 };
 
-class IHintableKernel
-    : public EnableCloneInterface<IHintableKernel, InheritFromVirtual<IKernel>, DynamicCastTag> {
+class IHintableKernel : public EnableCloneInterface<IHintableKernel, InheritFrom<IKernel>> {
 public:
     using HintT = size_t;
 
@@ -110,22 +106,7 @@ public:
                                            HintT* hint) const = 0;
 };
 
-template <class BaseKernel>
-class HintableKernel
-    : public EnableCloneInterface<HintableKernel<BaseKernel>,
-                                  InheritFromVirtual<IHintableKernel, BaseKernel>, DynamicCastTag> {
-    using BaseT =
-        EnableCloneInterface<HintableKernel<BaseKernel>, InheritFrom<IHintableKernel, BaseKernel>>;
-
-public:
-    HintableKernel() = default;
-
-    HintableKernel(std::mt19937* rd) : BaseKernel(rd) {
-    }
-};
-
-class IMDPKernel
-    : public EnableCloneInterface<IMDPKernel, InheritFromVirtual<IHintableKernel>, DynamicCastTag> {
+class IMDPKernel : public EnableCloneInterface<IMDPKernel, InheritFrom<IHintableKernel>> {
 public:
     virtual void ResetPolicy(IAgentPolicy* policy) = 0;
 };
@@ -135,6 +116,8 @@ struct _ImplKernelHolder;
 
 template <class ACKernel>
 struct _ImplKernelHolder<ACKernel, false> {
+    static constexpr bool holds_by_value = true;
+
     const ACKernel& Get() const {
         return kernel_;
     }
@@ -144,6 +127,8 @@ struct _ImplKernelHolder<ACKernel, false> {
 
 template <class ACKernel>
 struct _ImplKernelHolder<ACKernel, true> {
+    static constexpr bool holds_by_value = false;
+
     _ImplKernelHolder(const ACKernel& ker) : kernel_(ker.Clone()) {
     }
 
@@ -169,11 +154,14 @@ template <class ACKernel>
 using KernelHolder = _ImplKernelHolder<ACKernel>;
 
 template <class ACKernel>
-class MDPKernel final
-    : public EnableClone<MDPKernel<ACKernel>, InheritFrom<IMDPKernel, HintableKernel<IKernel>>> {
+class MDPKernel final : public EnableClone<MDPKernel<ACKernel>, InheritFrom<IMDPKernel>> {
 private:
+    using KerHolder = KernelHolder<ACKernel>;
+
 public:
-    using HintT = size_t;
+    static constexpr bool holds_kernel_by_value = KerHolder::holds_by_value;
+
+    using HintT = IMDPKernel::HintT;
 
     MDPKernel(const ACKernel& action_conditioned_kernel, IAgentPolicy* agent_policy)
         : conditioned_kernel_holder_{action_conditioned_kernel}, agent_policy_{agent_policy} {
@@ -229,6 +217,6 @@ public:
     }
 
 private:
-    KernelHolder<ACKernel> conditioned_kernel_holder_;
+    KerHolder conditioned_kernel_holder_;
     IAgentPolicy* agent_policy_{nullptr};
 };

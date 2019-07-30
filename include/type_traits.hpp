@@ -17,8 +17,13 @@ protected:
     }
 };
 
-template <class>
 class HintableKernel;
+
+template <class... T>
+struct InheritFrom;
+
+template <class... T>
+struct InheritFromVirtual;
 
 namespace type_traits {
 
@@ -69,8 +74,7 @@ DeepestCRTPType<T> GetDeepestLevelCopy(const T& arg) {
 // Class to find if the class is public derived from HintableKernel<T>
 template <class T>
 struct IsHintable {
-    template <class I>
-    static void Helper(const ::HintableKernel<I>&);
+    static void Helper(const ::HintableKernel&);
 
     template <class TestT, class = decltype(Helper(std::declval<TestT&>()))>
     static std::true_type Tester(const TestT& val);
@@ -82,5 +86,31 @@ struct IsHintable {
 
 template <class T>
 inline constexpr bool IsHintable_v = IsHintable<T>::value;
+
+template <class T>
+struct IsInheritFrom {
+    static constexpr bool value = false;
+};
+
+template <class... T>
+struct IsInheritFrom<InheritFrom<T...>> {
+    static constexpr bool value = true;
+};
+
+template <class T>
+struct IsInheritFromVirtual {
+    static constexpr bool value = false;
+};
+
+template <class... T>
+struct IsInheritFromVirtual<InheritFromVirtual<T...>> {
+    static constexpr bool value = true;
+};
+
+template <class T>
+inline constexpr bool IsInheritFrom_v = IsInheritFrom<T>::value || IsInheritFromVirtual<T>::value;
+
+template <class T>
+inline constexpr bool IsInheritFromVirtual_v = IsInheritFromVirtual<T>::value;
 
 }  // namespace type_traits
