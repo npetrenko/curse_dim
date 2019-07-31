@@ -1,5 +1,7 @@
 #pragma once
 
+#include "exceptions.hpp"
+
 #include <memory>
 #include <cassert>
 #include <type_traits>
@@ -36,6 +38,15 @@ template <class Derived, class AnotherBase, bool derived_is_abstract,
           bool base_is_cloneable = std::is_base_of_v<ICloneable, AnotherBase>>
 class _CloneableImpl;
 
+#ifndef DNDEBUG
+#define CLONE_OVERRIDE_CHECK                \
+    if (typeid(*this) != typeid(Derived)) { \
+        throw CloneException();             \
+    }
+#else
+#define CLONE_OVERRIDE_CHECK
+#endif
+
 #define __CloneImpl                                                        \
 public:                                                                    \
     std::unique_ptr<Derived> Clone() const {                               \
@@ -45,7 +56,7 @@ public:                                                                    \
                                                                            \
 protected:                                                                 \
     _CloneableImpl* ICloneImpl() const override {                          \
-        assert(typeid(*this) == typeid(Derived));                          \
+        CLONE_OVERRIDE_CHECK                                               \
         auto ret = new Derived(static_cast<const Derived&>(*this));        \
         return static_cast<std::remove_reference_t<decltype(*ret)>*>(ret); \
     }                                                                      \

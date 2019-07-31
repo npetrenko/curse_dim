@@ -20,7 +20,8 @@ public:
                                size_t cluster_size)
         : kernel_{kernel},
           cluster_{cluster_size, initializer},
-          secondary_cluster_{cluster_size, EmptyInitializer<MemoryView>{initializer.GetDim()}} {
+          secondary_cluster_{cluster_size,
+                             EmptyInitializer<MemoryView>{ParticleDim{initializer.GetDim()}}} {
     }
 
     void MakeIteration(size_t num_iterations, std::mt19937* local_rd_initializer);

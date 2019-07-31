@@ -28,7 +28,7 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
     std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
 
     RandomVectorizingInitializer<MemoryView, decltype(distr), std::mt19937> initializer{
-        op->GetEnvParams().ac_kernel->GetSpaceDim(), op->GetRD(), distr};
+        ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, op->GetRD(), distr};
 
     op->density_estimator_ =
         std::make_unique<StationaryDensityEstimator>(nullptr, initializer, op->GetNumParticles());

@@ -1,7 +1,8 @@
 #include <include/kernel.hpp>
 #include <cassert>
 
-#include "pendulum.hpp"
+#include <pendulum.hpp>
+
 namespace Pendulum {
 namespace {
 void TruncateMovement1D(TypeErasedParticlePtr to) {

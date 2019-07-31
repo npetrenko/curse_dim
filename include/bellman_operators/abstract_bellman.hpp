@@ -13,7 +13,7 @@ public:
     virtual ~IBellmanOperator() = default;
 };
 
-class AbstractBellmanOperator : public virtual IBellmanOperator {
+class AbstractBellmanOperator : public IBellmanOperator {
 public:
     template <class Derived>
     class Builder;

@@ -80,7 +80,8 @@ public:
     friend std::ostream& operator<<(std::ostream&, const QFuncEstForGreedy<IF>&);
 
     Particle<ParticleStorage> ValueAtPoint(TypeErasedParticleRef state) const {
-        Particle<ParticleStorage> result{EmptyInitializer<ParticleStorage>{NumActions()}};
+        Particle<ParticleStorage> result{
+            EmptyInitializer<ParticleStorage>{ParticleDim{NumActions()}}};
         for (size_t i = 0; i < NumActions(); ++i) {
             result[i] = ValueAtPoint(state, i);
         }

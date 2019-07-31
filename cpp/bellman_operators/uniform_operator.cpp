@@ -25,7 +25,7 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
 
     std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
     RandomVectorizingInitializer<MemoryView, decltype(distr), std::mt19937> initializer{
-        op->GetEnvParams().ac_kernel->GetSpaceDim(), random_device_.value(), distr};
+        ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.value(), distr};
 
     op->qfunc_primary_.SetParticleCluster(ParticleCluster{num_particles_.value(), initializer});
     {

@@ -1,4 +1,4 @@
-#include <main/experiment.hpp>
+#include <experiment.hpp>
 
 EnvParams BuildEnvironment(size_t num_pendulums, std::mt19937* rd) {
     ActionConditionedKernel action_conditioned_kernel{Pendulum::Kernel<-1>{num_pendulums, rd},
@@ -10,7 +10,18 @@ EnvParams BuildEnvironment(size_t num_pendulums, std::mt19937* rd) {
 }
 
 FloatT AbstractExperiment::Score() {
-    throw NotImplementedError();
+    std::unique_ptr<IQFuncEstimate> qfunc_est = EstimateQFunc();
+    GreedyPolicy policy{*qfunc_est};
+    MDPKernel mdp_kernel{*GetEnvParams().ac_kernel, &policy};
+
+    FloatT reward = 0;
+    Particle state{ConstantInitializer(0., ParticleDim{1})};
+    for (int i = 0; i < 10; ++i) {
+        size_t action = mdp_kernel.CalculateHint(state);
+        reward += GetEnvParams().reward_function(state, action);
+        mdp_kernel.EvolveWithHint(state, &state, &action);
+    }
+    return reward;
 }
 
 AbstractExperiment::AbstractExperiment(Params params) : params_(std::move(params)) {

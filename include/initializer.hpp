@@ -11,10 +11,10 @@
 template <class DerivedT, class StorageT>
 class AbstractInitializer : public CRTPDerivedCaster<DerivedT> {
 public:
-    explicit AbstractInitializer(size_t dim) noexcept : dim_{dim} {
+    explicit AbstractInitializer(ParticleDim dim) noexcept : dim_{dim} {
     }
 
-    AbstractInitializer(size_t dim, ParticleStorage* storage) noexcept
+    AbstractInitializer(ParticleDim dim, ParticleStorage* storage) noexcept
         : storage_{storage}, dim_{dim} {
     }
 
@@ -54,10 +54,10 @@ private:
 template <class StorageT>
 class EmptyInitializer : public AbstractInitializer<EmptyInitializer<StorageT>, StorageT> {
 public:
-    EmptyInitializer(size_t dim) : BaseT{dim} {
+    EmptyInitializer(ParticleDim dim) : BaseT{dim} {
     }
 
-    EmptyInitializer(size_t dim, ParticleStorage* storage) : BaseT{dim, storage} {
+    EmptyInitializer(ParticleDim dim, ParticleStorage* storage) : BaseT{dim, storage} {
     }
 
     template <class Container>
@@ -68,14 +68,14 @@ private:
     using BaseT = AbstractInitializer<EmptyInitializer<StorageT>, StorageT>;
 };
 
-EmptyInitializer(size_t)->EmptyInitializer<ParticleStorage>;
-EmptyInitializer(size_t, ParticleStorage*)->EmptyInitializer<MemoryView>;
+EmptyInitializer(ParticleDim)->EmptyInitializer<ParticleStorage>;
+EmptyInitializer(ParticleDim, ParticleStorage*)->EmptyInitializer<MemoryView>;
 
 template <class OtherContainer>
 class ValueInitializer : public AbstractInitializer<ValueInitializer<MemoryView>, MemoryView> {
 public:
     ValueInitializer(const OtherContainer& other, ParticleStorage* storage)
-        : BaseT{other.GetDim(), storage}, other_{other} {
+        : BaseT{ParticleDim{other.GetDim()}, storage}, other_{other} {
     }
 
     template <class Container>
@@ -97,10 +97,10 @@ class VectorizingInitializer
     : public CRTPDerivedCaster<DerivedT>,
       public AbstractInitializer<VectorizingInitializer<DerivedT, StorageT>, StorageT> {
 public:
-    VectorizingInitializer(size_t dim) : BaseT{dim} {
+    VectorizingInitializer(ParticleDim dim) : BaseT{dim} {
     }
 
-    VectorizingInitializer(size_t dim, ParticleStorage* storage) : BaseT{dim, storage} {
+    VectorizingInitializer(ParticleDim dim, ParticleStorage* storage) : BaseT{dim, storage} {
     }
 
     template <class Container>
@@ -122,10 +122,10 @@ protected:
 template <class StorageT>
 class ConstantInitializer : public VectorizingInitializer<ConstantInitializer<StorageT>, StorageT> {
 public:
-    ConstantInitializer(FloatT ct, size_t dim) : BaseT{dim}, ct_{ct} {
+    ConstantInitializer(FloatT ct, ParticleDim dim) : BaseT{dim}, ct_{ct} {
     }
 
-    ConstantInitializer(FloatT ct, size_t dim, ParticleStorage* storage)
+    ConstantInitializer(FloatT ct, ParticleDim dim, ParticleStorage* storage)
         : BaseT{dim, storage}, ct_{ct} {
     }
 
@@ -145,27 +145,27 @@ ConstantInitializer(FloatT, size_t, ParticleStorage*)->ConstantInitializer<Memor
 template <class StorageT>
 class ZeroInitializer : public ConstantInitializer<StorageT> {
 public:
-    ZeroInitializer(size_t dim) : BaseT{0., dim} {
+    ZeroInitializer(ParticleDim dim) : BaseT{0., dim} {
     }
-    ZeroInitializer(size_t dim, ParticleStorage* storage) : BaseT{0., dim, storage} {
+    ZeroInitializer(ParticleDim dim, ParticleStorage* storage) : BaseT{0., dim, storage} {
     }
 
 private:
     using BaseT = ConstantInitializer<StorageT>;
 };
-ZeroInitializer(size_t)->ZeroInitializer<ParticleStorage>;
-ZeroInitializer(size_t, ParticleStorage*)->ZeroInitializer<MemoryView>;
+ZeroInitializer(ParticleDim)->ZeroInitializer<ParticleStorage>;
+ZeroInitializer(ParticleDim, ParticleStorage*)->ZeroInitializer<MemoryView>;
 
 template <class StorageT, class RandomDistT, class RandomDevT>
 class RandomVectorizingInitializer final
     : public VectorizingInitializer<RandomVectorizingInitializer<StorageT, RandomDistT, RandomDevT>,
                                     StorageT> {
 public:
-    RandomVectorizingInitializer(size_t dim, RandomDevT* rd, RandomDistT dist)
+    RandomVectorizingInitializer(ParticleDim dim, RandomDevT* rd, RandomDistT dist)
         : BaseT{dim}, rd_{rd}, dist_{std::move(dist)} {
     }
 
-    RandomVectorizingInitializer(size_t dim, ParticleStorage* storage, RandomDevT* rd,
+    RandomVectorizingInitializer(ParticleDim dim, ParticleStorage* storage, RandomDevT* rd,
                                  RandomDistT dist)
         : BaseT{dim, storage}, rd_{rd}, dist_{std::move(dist)} {
     }
@@ -186,9 +186,9 @@ private:
 };
 
 template <class RandomDistT, class RandomDevT>
-RandomVectorizingInitializer(size_t, RandomDevT*, RandomDistT)
+RandomVectorizingInitializer(ParticleDim, RandomDevT*, RandomDistT)
     ->RandomVectorizingInitializer<ParticleStorage, RandomDistT, RandomDevT>;
 
 template <class RandomDistT, class RandomDevT>
-RandomVectorizingInitializer(size_t, ParticleStorage*, RandomDevT*, RandomDistT)
+RandomVectorizingInitializer(ParticleDim, ParticleStorage*, RandomDevT*, RandomDistT)
     ->RandomVectorizingInitializer<MemoryView, RandomDistT, RandomDevT>;

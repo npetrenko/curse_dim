@@ -48,17 +48,17 @@ TEST(Basic, AbstractKernelWorks) {
     ParticleStorage storage{1024};
     DetermKernel<1> kernel{};
 
-    Particle test_particle{ZeroInitializer(8, &storage)};
+    Particle test_particle{ZeroInitializer(ParticleDim{8}, &storage)};
 
     kernel.Evolve(test_particle, &test_particle);
     {
-        auto expected = Particle{ConstantInitializer(1., 8)};
+        auto expected = Particle{ConstantInitializer(1., ParticleDim{8})};
         ASSERT_EQ(test_particle, expected);
     }
 
     kernel.Evolve(test_particle, &test_particle);
     {
-        auto expected = Particle{ConstantInitializer(2., 8)};
+        auto expected = Particle{ConstantInitializer(2., ParticleDim{8})};
         ASSERT_EQ(test_particle, expected);
     }
 }
@@ -67,13 +67,13 @@ TEST(Basic, ActionConditionedKernelWorks) {
     ParticleStorage storage{1024};
     ActionConditionedKernel kernel{DetermKernel<1>{}, DetermKernel<2>{}};
 
-    Particle test_particle{ZeroInitializer(8, &storage)};
+    Particle test_particle{ZeroInitializer(ParticleDim{8}, &storage)};
 
     kernel.EvolveConditionally(test_particle, &test_particle, 0);
-    ASSERT_EQ(test_particle, Particle{ConstantInitializer(1., 8)});
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(1., ParticleDim{8})});
 
     kernel.EvolveConditionally(test_particle, &test_particle, 1);
-    ASSERT_EQ(test_particle, Particle{ConstantInitializer(3., 8)});
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(3., ParticleDim{8})});
 }
 
 TEST(Basic, DeterministicKernelWorks) {
@@ -88,13 +88,13 @@ TEST(Basic, DeterministicKernelWorks) {
     */
     MDPKernel kernel{ActionConditionedKernel{DetermKernel<1>{}, DetermKernel<2>{}}, &policy};
 
-    Particle test_particle{ZeroInitializer(8, &storage)};
+    Particle test_particle{ZeroInitializer(ParticleDim{8}, &storage)};
 
     kernel.Evolve(test_particle, &test_particle);
-    ASSERT_EQ(test_particle, Particle{ConstantInitializer(1., 8)});
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(1., ParticleDim{8})});
 
     kernel.Evolve(test_particle, &test_particle);
-    ASSERT_EQ(test_particle, Particle{ConstantInitializer(3., 8)});
+    ASSERT_EQ(test_particle, Particle{ConstantInitializer(3., ParticleDim{8})});
 }
 
 class ARKernel final : public EnableClone<ARKernel, InheritFrom<RNGKernel>> {
@@ -202,9 +202,9 @@ FloatT GetExpectedMass(const size_t kDim) {
     KernelT kernel{&random_device};
     using InitT = RandomVectorizingInitializer<MemoryView, std::uniform_real_distribution<FloatT>,
                                                std::mt19937>;
-    ParticleCluster cluster{
-        1024 * 1024, InitT{kDim, &random_device, std::uniform_real_distribution<FloatT>{-6, 6}}};
-    Particle<ParticleStorage> origin{ZeroInitializer(kDim)};
+    ParticleCluster cluster{1024 * 1024, InitT{ParticleDim{kDim}, &random_device,
+                                               std::uniform_real_distribution<FloatT>{-6, 6}}};
+    Particle<ParticleStorage> origin{ZeroInitializer(ParticleDim{kDim})};
 
     FloatT prob = 0;
     for (const auto& elem : cluster) {
@@ -243,8 +243,8 @@ TEST(StationaryEstim, SimpleModel) {
 
     StationaryDensityEstimator estimator{
         &kernel,
-        RandomVectorizingInitializer<MemoryView, decltype(init_distr), std::mt19937>{1, &rd,
-                                                                                     init_distr},
+        RandomVectorizingInitializer<MemoryView, decltype(init_distr), std::mt19937>{
+            ParticleDim{1}, &rd, init_distr},
         kClusterSize};
     estimator.MakeIteration(100, &rd);
 
@@ -297,7 +297,7 @@ TEST(UniformBellman, SimpleModel) {
     for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
         std::cout << "\n///////////////////////////////////////////"
                   << "\n";
-        Particle state{ConstantInitializer(init, 1)};
+        Particle state{ConstantInitializer(init, ParticleDim{1})};
         for (int i = 0; i < 10; ++i) {
             std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
             mdp_kernel.Evolve(state, &state);
@@ -340,7 +340,7 @@ TEST(StationaryBellmanOperator, SimpleModel) {
     for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
         std::cout << "\n///////////////////////////////////////////"
                   << "\n";
-        Particle state{ConstantInitializer(init, 1)};
+        Particle state{ConstantInitializer(init, ParticleDim{1})};
         for (int i = 0; i < 10; ++i) {
             std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
             mdp_kernel.Evolve(state, &state);

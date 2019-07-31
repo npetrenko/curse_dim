@@ -104,6 +104,8 @@ public:
     virtual HintT CalculateHint(TypeErasedParticleRef from) const = 0;
     virtual FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to,
                                            HintT* hint) const = 0;
+    virtual void EvolveWithHint(TypeErasedParticleRef from, TypeErasedParticlePtr to, std::mt19937* rd, HintT* hint) const = 0;
+    virtual void EvolveWithHint(TypeErasedParticleRef from, TypeErasedParticlePtr to, HintT* hint) const = 0;
 };
 
 class IMDPKernel : public EnableCloneInterface<IMDPKernel, InheritFrom<IHintableKernel>> {
@@ -197,6 +199,14 @@ public:
     inline FloatT GetTransDensityWithHint(TypeErasedParticleRef from, TypeErasedParticleRef to,
                                           HintT* hint) const override {
         return conditioned_kernel_holder_.Get().GetTransDensityConditionally(from, to, *hint);
+    }
+
+    inline void EvolveWithHint(TypeErasedParticleRef from, TypeErasedParticlePtr to, std::mt19937* rd, HintT* hint) const override {
+	conditioned_kernel_holder_.Get().EvolveConditionally(from, to, *hint, rd);
+    }
+
+    inline void EvolveWithHint(TypeErasedParticleRef from, TypeErasedParticlePtr to, HintT* hint) const override {
+	conditioned_kernel_holder_.Get().EvolveConditionally(from, to, *hint);
     }
 
     inline void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr output,

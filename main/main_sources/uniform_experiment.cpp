@@ -1,5 +1,5 @@
-#include <main/pendulum.hpp>
-#include <main/experiment.hpp>
+#include <pendulum.hpp>
+#include <experiment.hpp>
 #include <include/bellman_operators/uniform_operator.hpp>
 
 class UniformExperimentImpl : public AbstractExperiment {

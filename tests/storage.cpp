@@ -3,7 +3,7 @@
 #include <include/particle_storage.hpp>
 
 TEST(Cluster, CopyConstruct) {
-    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(1)};
+    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(ParticleDim{1})};
     ParticleCluster second_cluster{first_cluster};
 
     for (auto& part : second_cluster) {
@@ -16,8 +16,8 @@ TEST(Cluster, CopyConstruct) {
 }
 
 TEST(Cluster, CopyAssing) {
-    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(1)};
-    ParticleCluster second_cluster{1, ConstantInitializer<MemoryView>(1., 2)};
+    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(ParticleDim{1})};
+    ParticleCluster second_cluster{1, ConstantInitializer<MemoryView>(1., ParticleDim{2})};
 
     second_cluster = first_cluster;
 
@@ -35,7 +35,7 @@ TEST(Cluster, CopyAssing) {
 }
 
 TEST(Cluster, MoveConstruct) {
-    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(1)};
+    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(ParticleDim{1})};
     ParticleCluster second_cluster{std::move(first_cluster)};
 
     for (const auto& part: second_cluster) {
@@ -47,8 +47,8 @@ TEST(Cluster, MoveConstruct) {
 }
 
 TEST(Cluster, MoveAssign) {
-    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(1)};
-    ParticleCluster second_cluster{1, ConstantInitializer<MemoryView>(1., 2)};
+    ParticleCluster first_cluster{2, ZeroInitializer<MemoryView>(ParticleDim{1})};
+    ParticleCluster second_cluster{1, ConstantInitializer<MemoryView>(1., ParticleDim{2})};
 
     second_cluster = std::move(first_cluster);
 

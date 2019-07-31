@@ -9,9 +9,11 @@ struct EnvParams {
     EnvParams() = default;
 
     template <class ACKernel>
-    EnvParams(const ACKernel& kernel, RewardFuncT reward, FloatT gamma) : ac_kernel(kernel.Clone()), reward_function(std::move(reward)), gamma(gamma) {
-	mdp_kernel = std::make_unique<MDPKernel<ACKernel>>(kernel, nullptr);
-	static_assert(MDPKernel<ACKernel>::holds_kernel_by_value, "It should hold by value here");
+    EnvParams(const ACKernel& kernel, RewardFuncT reward, FloatT gamma)
+        : ac_kernel(kernel.Clone()), reward_function(std::move(reward)), gamma(gamma) {
+        mdp_kernel = std::make_unique<MDPKernel<ACKernel>>(kernel, nullptr);
+        static_assert(MDPKernel<ACKernel>::holds_kernel_by_value == !std::is_abstract_v<ACKernel>,
+                      "It should hold by value here");
     }
 
     EnvParams(const EnvParams& other);

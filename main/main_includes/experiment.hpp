@@ -2,7 +2,7 @@
 
 #include <include/bellman_operators/environment.hpp>
 #include <include/bellman_operators/abstract_bellman.hpp>
-#include <main/pendulum.hpp>
+#include <main/main_includes/pendulum.hpp>
 
 EnvParams BuildEnvironment(size_t num_pendulums, std::mt19937* rd);
 

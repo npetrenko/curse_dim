@@ -1,5 +1,5 @@
-#include <main/experiment.hpp>
-#include <main/uniform_experiment.hpp>
+#include <main/main_includes/experiment.hpp>
+#include <main/main_includes/uniform_experiment.hpp>
 
 int main() {
     std::mt19937 rd{1234};
@@ -18,6 +18,6 @@ int main() {
     }
 
     auto uniform_experiment = UniformExperiment::Make(builder);
-    uniform_experiment->EstimateQFunc();
+    std::cout << uniform_experiment->Score() << "\n";
     return 0;
 }
