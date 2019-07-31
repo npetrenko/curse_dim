@@ -54,9 +54,10 @@ private:
     std::array<FloatT, 2> CalcEvolveWithFixedNoise(TypeErasedParticleRef from,
                                                    std::array<FloatT, 2> noise) const {
         std::array<FloatT, 2> result;
+        auto cube = [](auto x) { return x * x * x; };
 
         result[0] = from[0] + kDeltaTime * (from[1] + noise[0]);
-        result[1] = kDeltaTime * (-kG * sin(from[0]) - kResistance * from[1] +
+        result[1] = kDeltaTime * (-kG * sin(from[0]) - kResistance * cube(from[1]) +
                                   kActionForce * action_direction + noise[1]);
         return result;
     }
@@ -77,7 +78,7 @@ FloatT Kernel1D<action_direction>::GetTransDensityImpl(TypeErasedParticleRef fro
     Kernel1DUnwrapped<action_direction> ker;
     ker.ChechArgs(from);
     ker.ChechArgs(to);
-    if (to[0] > M_PI || to[0] < M_PI || from[0] > M_PI || from[0] < M_PI) {
+    if (to[0] > M_PI || to[0] < -M_PI || from[0] > M_PI || from[0] < -M_PI) {
         return 0;
     }
 
