@@ -22,8 +22,8 @@ struct EnvParams {
 
     EnvParams& operator=(const EnvParams& other);
 
-    std::unique_ptr<IActionConditionedKernel> ac_kernel;
-    std::unique_ptr<IMDPKernel> mdp_kernel;
+    std::unique_ptr<const IActionConditionedKernel> ac_kernel;
+    std::unique_ptr<const IMDPKernel> mdp_kernel;
     RewardFuncT reward_function;
     FloatT gamma;
 };

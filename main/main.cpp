@@ -1,17 +1,23 @@
-#include <include/kernel.hpp>
-#include <include/agent_policy.hpp>
-#include <include/bellman_operators/uniform_operator.hpp>
-#include <main/pendulum.hpp>
+#include <main/experiment.hpp>
+#include <main/uniform_experiment.hpp>
 
 int main() {
     std::mt19937 rd{1234};
     constexpr size_t kNumPendulums = 10;
-    ActionConditionedKernel ac_kernel{Pendulum::Kernel<-1>{kNumPendulums, &rd},
-                                      Pendulum::Kernel<0>{kNumPendulums, &rd},
-                                      Pendulum::Kernel<1>{kNumPendulums, &rd}};
-    EnvParams env_params{ac_kernel, Pendulum::RewardFunc{}, 0.95};
+    constexpr size_t kNumIterations = 10;
+    constexpr size_t kNumParticles = 2048;
+    
+    AbstractExperiment::Builder builder;
+    {
+	auto env_params = BuildEnvironment(kNumPendulums, &rd);
+        builder.SetEnvironment(std::move(env_params))
+            .SetNumIterations(kNumIterations)
+            .SetNumParticles(kNumParticles)
+            .SetNumPendulums(kNumPendulums)
+            .SetRandomDevice(&rd);
+    }
 
-    UniformBellmanOperator::Builder builder;
-    builder.SetEnvParams(env_params).SetNumParticles(1024).SetRandomDevice(&rd);
+    auto uniform_experiment = UniformExperiment::Make(builder);
+    uniform_experiment->EstimateQFunc();
     return 0;
 }

@@ -21,14 +21,23 @@
 #include "../../thread_pool/include/for_loop.hpp"
 #include "../matrix.hpp"
 
+class UniformBellmanOperator;
+using UniformBellmanOperatorPtr = std::unique_ptr<UniformBellmanOperator>;
+
+
 class UniformBellmanOperator : public AbstractBellmanOperator {
 public:
     class Builder;
     void MakeIteration() override;
 
-    inline const DiscreteQFuncEst& GetQFunc() const override {
+    inline const DiscreteQFuncEst& GetQFunc() const& override {
         return qfunc_primary_;
     }
+    
+    inline DiscreteQFuncEst GetQFunc() && override {
+        return std::move(qfunc_primary_);
+    }
+
     inline const ConstantWeightedParticleCluster& GetSamplingDistribution() const override {
         return *sampling_distribution_;
     }

@@ -7,10 +7,12 @@
 class IBellmanOperator {
 public:
     virtual void MakeIteration() = 0;
-    virtual const DiscreteQFuncEst& GetQFunc() const = 0;
+    virtual const DiscreteQFuncEst& GetQFunc() const& = 0;
+    virtual DiscreteQFuncEst GetQFunc() && = 0;
     virtual const AbstractWeightedParticleCluster& GetSamplingDistribution() const = 0;
     virtual ~IBellmanOperator() = default;
 };
+
 class AbstractBellmanOperator : public virtual IBellmanOperator {
 public:
     template <class Derived>

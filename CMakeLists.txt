@@ -52,7 +52,7 @@ target_link_libraries(tests bellman gtest_main gtest glog::glog)
 add_test(tests tests)
 
 
-set(MAIN_SOURCES main.cpp pendulum.cpp uniform_experiment.cpp)
+set(MAIN_SOURCES main.cpp pendulum.cpp uniform_experiment.cpp experiment.cpp)
 prepend(MAIN_SOURCES ${MAIN_DIR} ${MAIN_SOURCES})
 add_executable(main ${MAIN_SOURCES})
 target_link_libraries(main bellman)

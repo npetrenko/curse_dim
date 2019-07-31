@@ -21,8 +21,12 @@ public:
 
     void MakeIteration() override;
 
-    inline const DiscreteQFuncEst& GetQFunc() const override {
+    inline const DiscreteQFuncEst& GetQFunc() const& override {
         return qfunc_primary_;
+    }
+
+    inline DiscreteQFuncEst GetQFunc() && override {
+        return std::move(qfunc_primary_);
     }
 
     const VectorWeightedParticleCluster& GetSamplingDistribution() const override {
