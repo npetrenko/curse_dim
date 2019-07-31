@@ -5,22 +5,26 @@
 #include "memory_view.hpp"
 
 #include <vector>
+#include <array>
 #include <type_traits>
 #include <cassert>
 
-class ParticleStorage : private std::vector<FloatT> {
+template <class BaseContainer>
+class ParticleStorageTemplate : private BaseContainer {
 public:
-    using iterator = std::vector<FloatT>::iterator;
-    using const_iterator = std::vector<FloatT>::const_iterator;
+    using iterator = typename BaseContainer::iterator;
+    using const_iterator = typename BaseContainer::const_iterator;
 
-    ParticleStorage(size_t max_size) {
-        std::vector<FloatT>::resize(max_size);
+    ParticleStorageTemplate() = default;
+
+    ParticleStorageTemplate(size_t max_size) {
+        BaseContainer::resize(max_size);
         current_pos_ = 0;
     }
 
     inline void resize(size_t size) {
         assert(size <= this->size());
-        std::vector<FloatT>::resize(size);
+        BaseContainer::resize(size);
     }
 
     inline MemoryView AllocateForParticle(size_t size) {
@@ -33,33 +37,10 @@ public:
         return {this->data() + old_pos, size};
     }
 
-    inline FloatT& operator[](size_t pos) {
-        return *(this->begin() + pos);
-    }
-
-    inline FloatT operator[](size_t pos) const {
-        return *(this->begin() + pos);
-    }
-
-    inline iterator begin() {
-        return std::vector<FloatT>::begin();
-    }
-
-    inline iterator end() {
-        return std::vector<FloatT>::end();
-    }
-
-    inline const_iterator begin() const {
-        return std::vector<FloatT>::cbegin();
-    }
-
-    inline const_iterator end() const {
-        return std::vector<FloatT>::cend();
-    }
-
-    inline size_t size() const {
-        return std::vector<FloatT>::size();
-    }
+    using BaseContainer::operator[];
+    using BaseContainer::begin;
+    using BaseContainer::end;
+    using BaseContainer::size;
 
     inline void Clear() {
         current_pos_ = 0;
@@ -70,5 +51,16 @@ public:
     }
 
 private:
-    size_t current_pos_;
+    size_t current_pos_{0};
+};
+
+class ParticleStorage : public ParticleStorageTemplate<std::vector<FloatT>> {
+public:
+    using ParticleStorageTemplate::ParticleStorageTemplate;
+};
+
+template <size_t size>
+class StackParticleStorage  : public ParticleStorageTemplate<std::array<FloatT, size>> {
+public:
+    using ParticleStorageTemplate<std::array<FloatT, size>>::ParticleStorageTemplate;
 };

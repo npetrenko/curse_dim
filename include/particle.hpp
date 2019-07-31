@@ -14,7 +14,6 @@ class ParticleCluster;
 template <class StorageT = ParticleStorage>
 class Particle {
     friend class ParticleCluster;
-
 public:
     using reference = typename std::iterator_traits<typename StorageT::iterator>::reference;
 
@@ -31,7 +30,8 @@ public:
     template <class S>
     Particle& operator=(const Particle<S>& other) {
         assert(GetDim() == other.GetDim());
-        std::copy(other.data_.begin(), other.data_.end(), data_.begin());
+        std::copy(other.begin(), other.end(), data_.begin());
+	return *this;
     }
 
     inline size_t GetDim() const {
@@ -49,11 +49,16 @@ public:
     template <class T>
     bool operator==(const Particle<T>& other) const;
 
-    Particle& operator*=(FloatT val) {
-        for (auto& x : data_) {
-            x *= val;
-        }
-        return *this;
+    Particle& operator*=(FloatT val){
+        return ApplyUnaryOp([val](auto& x) { x *= val; });
+    }
+
+    Particle& operator-=(FloatT val) {
+        return ApplyUnaryOp([val](auto& x) { x -= val; });
+    }
+
+    Particle& operator+=(FloatT val) {
+        return ApplyUnaryOp([val](auto& x) { x += val; });
     }
 
     FloatT NormSquared() const {
@@ -106,6 +111,13 @@ public:
     }
 
 private:
+    template <class Func>
+    inline Particle& ApplyUnaryOp(Func func) {
+	for (auto& val: data_) {
+	    func(val);
+	}
+	return *this;
+    }
     StorageT data_;
 };
 

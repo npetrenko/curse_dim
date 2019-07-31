@@ -26,11 +26,6 @@ private:
                     std::mt19937* rd) const override;
 
     FloatT GetTransDensityImpl(TypeErasedParticleRef from, TypeErasedParticleRef to) const override;
-
-    std::array<FloatT, 2> CalcEvolveWithFixedNoise(TypeErasedParticleRef from,
-                                                   std::array<FloatT, 2> noise) const;
-
-    void ChechArgs(TypeErasedParticleRef particle) const;
 };
 
 template <int action_direction>
