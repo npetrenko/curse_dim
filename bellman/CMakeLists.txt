@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
-project(curse_dim)
+project(bellman)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -13,7 +13,7 @@ set(CMAKE_CXX_FLAGS_RELASAN "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fn
 
 find_package(glog 0.4.0 REQUIRED)
 find_package(GTest REQUIRED)
-add_subdirectory(bellman)
+add_subdirectory(thread_pool)
 enable_testing()
 
 set(TEST_DIR "tests")
@@ -27,14 +27,21 @@ function(prepend var prefix)
   set(${var} ${listVar} PARENT_SCOPE)
 endfunction()
 
-set(TEST_SOURCES pendulum_kernel.cpp)
-prepend(TEST_SOURCES ${TEST_DIR} ${TEST_SOURCES})
-add_executable(curse_tests ${TEST_SOURCES})
-target_link_libraries(curse_tests bellman gtest_main gtest glog::glog)
-add_test(curse_tests curse_tests)
+set(SOURCES particle.cpp
+  bellman_operators/abstract_bellman.cpp
+  bellman_operators/environment.cpp
+  bellman_operators/qfunc.cpp
+  bellman_operators/stationary_operator.cpp
+  bellman_operators/uniform_operator.cpp
+  density_estimators/stationary_estimator.cpp)
+prepend(SOURCES ${CPP_DIR} ${SOURCES})
 
-set(MAIN_SOURCES main.cpp pendulum.cpp uniform_experiment.cpp experiment.cpp)
-prepend(MAIN_SOURCES ${CPP_DIR} ${MAIN_SOURCES})
-add_executable(main ${MAIN_SOURCES})
-target_include_directories(main PUBLIC include)
-target_link_libraries(main bellman)
+add_library(bellman ${SOURCES})
+target_include_directories(bellman PUBLIC include)
+target_link_libraries(bellman glog::glog thread_pool)
+
+set(TEST_SOURCES bellman.cpp storage.cpp type_traits.cpp uniform_operator_build.cpp)
+prepend(TEST_SOURCES ${TEST_DIR} ${TEST_SOURCES})
+add_executable(bellman_tests ${TEST_SOURCES})
+target_link_libraries(bellman_tests bellman gtest_main gtest glog::glog)
+add_test(bellman_tests bellman_tests)

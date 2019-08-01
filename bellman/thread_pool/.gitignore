@@ -1,0 +1,8 @@
+*~
+build/
+release/
+debug/
+tsan/
+asan/
+.#*
+*.so
