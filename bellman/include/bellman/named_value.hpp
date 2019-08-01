@@ -20,7 +20,7 @@ public:
     }
 
     operator ValueType &&() && {
-        return value_;
+        return std::move(value_);
     }
 
 private:

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <bellman/kernel.hpp>
+#include <bellman/named_value.hpp>
+
+using NumPendulums = NamedValue<size_t, struct NumPendulumsTag>;
 
 namespace Pendulum {
 inline constexpr FloatT kActionForce = 1.;
