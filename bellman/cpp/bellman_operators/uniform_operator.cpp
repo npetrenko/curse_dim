@@ -1,5 +1,11 @@
 #include <bellman/bellman_operators/uniform_operator.hpp>
 #include <bellman/types.hpp>
+#include <thread_pool/for_loop.hpp>
+
+#ifndef NDEBUG
+#include <fenv.h>
+#endif
+
 
 UniformBellmanOperator::UniformBellmanOperator(AbstractBellmanOperator::Params&& params,
                                                Params&& unif_params)
@@ -91,7 +97,7 @@ void UniformBellmanOperator::NormalizeWeights() {
             }
             // Importance sampling correction is also included into sum, so it may be not
             // close to 1
-            additional_weights_(i, action_number) = 1 / sum;
+	    additional_weights_(i, action_number) = sum? 1 / sum : 0;
         });
     }
 }

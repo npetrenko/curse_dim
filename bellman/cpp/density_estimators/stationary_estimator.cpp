@@ -1,5 +1,7 @@
 #include <bellman/density_estimators/stationary_estimator.hpp>
 
+#include <thread_pool/for_loop.hpp>
+
 void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
                                                std::mt19937* local_rd_initializer) {
     if (num_iterations == 0) {

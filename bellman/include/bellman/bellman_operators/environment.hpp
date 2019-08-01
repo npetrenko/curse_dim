@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../kernel.hpp"
-#include "../agent_policy.hpp"
 
 struct EnvParams {
     using RewardFuncT = std::function<FloatT(TypeErasedParticleRef, size_t)>;

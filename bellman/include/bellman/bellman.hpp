@@ -2,7 +2,6 @@
 
 #include "agent_policy.hpp"
 #include "kernel.hpp"
-#include "util.hpp"
 #include "particle.hpp"
 
 class IQFuncEstimate : public EnableCloneInterface<IQFuncEstimate> {

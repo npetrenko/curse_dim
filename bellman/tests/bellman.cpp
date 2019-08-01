@@ -202,7 +202,7 @@ FloatT GetExpectedMass(const size_t kDim) {
     KernelT kernel{&random_device};
     using InitT = RandomVectorizingInitializer<MemoryView, std::uniform_real_distribution<FloatT>,
                                                std::mt19937>;
-    ParticleCluster cluster{1024 * 1024, InitT{ParticleDim{kDim}, &random_device,
+    ParticleCluster cluster{1024 * 256, InitT{ParticleDim{kDim}, &random_device,
                                                std::uniform_real_distribution<FloatT>{-6, 6}}};
     Particle<ParticleStorage> origin{ZeroInitializer(ParticleDim{kDim})};
 
@@ -222,15 +222,15 @@ TEST(Probability, ARKernelSummsToOne) {
 TEST(Probability, SimpleModelKernelSummsToOne) {
     {
         FloatT prob = GetExpectedMass<SimpleModel::Kernel<-1>>(1);
-        ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+	ASSERT_NEAR(prob, 1., 0.03);
     }
     {
         FloatT prob = GetExpectedMass<SimpleModel::Kernel<0>>(1);
-        ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+	ASSERT_NEAR(prob, 1., 0.03);
     }
     {
         FloatT prob = GetExpectedMass<SimpleModel::Kernel<1>>(1);
-        ASSERT_TRUE(prob >= 0.99 && prob <= 1.01);
+	ASSERT_NEAR(prob, 1., 0.03);
     }
 }
 

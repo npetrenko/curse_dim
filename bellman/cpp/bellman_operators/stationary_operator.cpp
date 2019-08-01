@@ -1,4 +1,9 @@
 #include <bellman/bellman_operators/stationary_operator.hpp>
+#include <thread_pool/for_loop.hpp>
+
+#ifndef NDEBUG
+#include <fenv.h>
+#endif
 
 StationaryBellmanOperator::StationaryBellmanOperator(AbstractBellmanOperator::Params&& params,
                                                      Params&& stat_params)

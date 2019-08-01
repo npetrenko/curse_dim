@@ -1,13 +1,11 @@
 #pragma once
 
-#include "../bellman.hpp"
 #include "../particle.hpp"
+#include "../cloneable.hpp"
+#include "../bellman.hpp"
 #include "environment.hpp"
-#include "../density_estimators/stationary_estimator.hpp"
 
 #include <optional>
-
-#include <thread_pool/for_loop.hpp>
 
 class DiscreteQFuncEst final : public EnableClone<DiscreteQFuncEst, InheritFrom<IQFuncEstimate>> {
 public:

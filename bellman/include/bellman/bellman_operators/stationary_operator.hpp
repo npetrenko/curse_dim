@@ -3,17 +3,10 @@
 #include "../bellman.hpp"
 #include "abstract_bellman.hpp"
 #include "../matrix.hpp"
+#include "../density_estimators/stationary_estimator.hpp"
 
 #include <random>
 #include <optional>
-
-#include <glog/logging.h>
-
-#ifndef NDEBUG
-#include <fenv.h>
-#endif
-
-#include <thread_pool/for_loop.hpp>
 
 class StationaryBellmanOperator final : public AbstractBellmanOperator {
 public:

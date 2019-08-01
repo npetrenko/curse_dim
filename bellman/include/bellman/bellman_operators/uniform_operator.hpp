@@ -12,13 +12,6 @@
 #include <cassert>
 #include <optional>
 
-#include <glog/logging.h>
-
-#ifndef NDEBUG
-#include <fenv.h>
-#endif
-
-#include <thread_pool/for_loop.hpp>
 #include "../matrix.hpp"
 
 class UniformBellmanOperator;

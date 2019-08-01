@@ -11,6 +11,7 @@ void TruncateMovement1D(TypeErasedParticlePtr to) {
     auto mpi = static_cast<FloatT>(M_PI);
     FloatT div = pos / mpi;
     pos -= static_cast<int64_t>(div) * mpi;
+    assert(pos >= -M_PI && pos <= M_PI);
 }
 
 template <int action_direction>
@@ -19,17 +20,16 @@ public:
     void Evolve(TypeErasedParticleRef from, TypeErasedParticlePtr to, std::mt19937* rd) const {
         ChechArgs(from);
         ChechArgs(*to);
-        std::uniform_real_distribution<FloatT> pos_noise{-kNoiseStrength[0], kNoiseStrength[0]};
-        std::uniform_real_distribution<FloatT> speed_noise{-kNoiseStrength[1], kNoiseStrength[1]};
-        std::array new_to = CalcEvolveWithFixedNoise(from, {pos_noise(*rd), speed_noise(*rd)});
+	auto noise_distr = GetNoiseDistr();
+        std::array new_to = CalcEvolveWithFixedNoise(from, {noise_distr[0](*rd), noise_distr[1](*rd)});
         std::copy(new_to.begin(), new_to.end(), to->begin());
     }
 
     FloatT GetTransDensity(TypeErasedParticleRef from, TypeErasedParticleRef to) const {
         ChechArgs(from);
         ChechArgs(to);
-        auto calc_corner = [from = &from, this](FloatT pos_noise, FloatT speed_noise) {
-            return CalcEvolveWithFixedNoise(*from, {pos_noise, speed_noise});
+        auto calc_corner = [&from = from, this](FloatT pos_noise, FloatT speed_noise) {
+            return CalcEvolveWithFixedNoise(from, {pos_noise, speed_noise});
         };
         std::array<FloatT, 2> lower_left = calc_corner(-kNoiseStrength[0], -kNoiseStrength[1]);
         std::array<FloatT, 2> upper_right = calc_corner(kNoiseStrength[0], kNoiseStrength[1]);
@@ -38,7 +38,7 @@ public:
             (to[1] > upper_right[1])) {
             return 0;
         }
-        return 1 / (2 * kNoiseStrength[0] * 2 * kNoiseStrength[1]);
+        return 1 / (2 * kNoiseStrength[0] * 2 * kNoiseStrength[1] * kDeltaTime * kDeltaTime);
     }
 
     size_t GetSpaceDim() const {
@@ -90,11 +90,13 @@ FloatT Kernel1D<action_direction>::GetTransDensityImpl(TypeErasedParticleRef fro
 
         result += ker.GetTransDensity(from, part);
 
-        part[0] += M_PI;
-        result += ker.GetTransDensity(from, part);
-
-        part[0] -= 2 * M_PI;
-        result += ker.GetTransDensity(from, part);
+        if (part[0] >= 0) {
+            part[0] += M_PI;
+            result += ker.GetTransDensity(from, part);
+        } else if (part[0] < 0) {
+            part[0] -= M_PI;
+            result += ker.GetTransDensity(from, part);
+        }
     }
 
     return result;

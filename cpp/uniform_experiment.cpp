@@ -1,6 +1,7 @@
 #include <curse_dim/pendulum.hpp>
 #include <curse_dim/experiment.hpp>
 #include <bellman/bellman_operators/uniform_operator.hpp>
+#include <glog/logging.h>
 
 class UniformExperimentImpl : public AbstractExperiment {
 public:
@@ -9,6 +10,7 @@ public:
     }
 
     std::unique_ptr<IQFuncEstimate> EstimateQFunc() override {
+	LOG(INFO) << "Initializing uniform bellman op";
         UniformBellmanOperatorPtr bellman_op;
         {
             UniformBellmanOperator::Builder builder;
@@ -19,6 +21,7 @@ public:
             bellman_op = std::move(builder).Build();
         }
         for (size_t i = 0; i < GetNumIterations(); ++i) {
+	    LOG(INFO) << "Started iter " << i;
             bellman_op->MakeIteration();
         }
 

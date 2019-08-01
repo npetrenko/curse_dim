@@ -38,6 +38,7 @@ prepend(TEST_SOURCES ${TEST_DIR} ${TEST_SOURCES})
 add_executable(curse_tests ${TEST_SOURCES})
 target_link_libraries(curse_tests curse_dim gtest_main gtest glog::glog)
 add_test(curse_tests curse_tests)
+set_target_properties(curse_tests PROPERTIES EXCLUDE_FROM_ALL 1)
 
 add_executable(main "${CPP_DIR}/main.cpp")
 target_link_libraries(main curse_dim)

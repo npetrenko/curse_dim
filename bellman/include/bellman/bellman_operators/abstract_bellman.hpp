@@ -1,8 +1,8 @@
 #pragma once
 
 #include "qfunc.hpp"
-#include "../density_estimators/stationary_estimator.hpp"
 #include "environment.hpp"
+#include "../density_estimators/weighted_particle_clusters.hpp"
 
 class IBellmanOperator {
 public:

@@ -3,9 +3,9 @@
 
 int main() {
     std::mt19937 rd{1234};
-    constexpr size_t kNumPendulums = 10;
+    constexpr size_t kNumPendulums = 1;
     constexpr size_t kNumIterations = 10;
-    constexpr size_t kNumParticles = 2048;
+    constexpr size_t kNumParticles = 128*1024;
     
     AbstractExperiment::Builder builder;
     {
