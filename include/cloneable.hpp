@@ -1,7 +1,6 @@
 #pragma once
 
-#include <memory>
-#include <typeinfo>
+#include <type_traits>
 
 class ICloneable {
 public:
