@@ -1,6 +1,5 @@
 #pragma once
 
-#include "exceptions.hpp"
 #include "type_traits.hpp"
 
 #include <memory>
@@ -44,7 +43,7 @@ public:                                                                    \
 protected:                                                                 \
     inline _CloneableImpl* ICloneImpl() const override {                   \
         if (typeid(*this) != typeid(Derived)) {                            \
-            throw CloneException();                                        \
+            throw 0;                                        \
         }                                                                  \
         auto ret = new Derived(static_cast<const Derived&>(*this));        \
         return static_cast<std::remove_reference_t<decltype(*ret)>*>(ret); \

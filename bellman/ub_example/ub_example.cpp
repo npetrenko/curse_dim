@@ -1,4 +1,4 @@
-#include <bellman/bellman_operators/uniform_operator.hpp>
+#include <bellman/bellman_operators/qfunc.hpp>
 
 int main() {
     DiscreteQFuncEst est;
