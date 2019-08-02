@@ -40,7 +40,7 @@ add_library(bellman ${SOURCES})
 target_include_directories(bellman PUBLIC include)
 target_link_libraries(bellman glog::glog thread_pool)
 
-set(TEST_SOURCES main.cpp bellman.cpp storage.cpp type_traits.cpp uniform_operator_build.cpp)
+set(TEST_SOURCES main.cpp bellman.cpp storage.cpp type_traits.cpp ub_example.cpp)
 prepend(TEST_SOURCES ${TEST_DIR} ${TEST_SOURCES})
 add_executable(bellman_tests ${TEST_SOURCES})
 target_link_libraries(bellman_tests bellman gtest glog::glog)
