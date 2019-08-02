@@ -1,0 +1,4 @@
+clang version 8.0.1 (tags/RELEASE_801/final)
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin

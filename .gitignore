@@ -6,5 +6,7 @@ tsan/
 asan/
 reldeb/
 relwithdebinfo/
+gcc/
+clang/
 .#*
 *.so
