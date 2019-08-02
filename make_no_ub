@@ -1,0 +1,5 @@
+#!/bin/bash
+mkdir no_ub
+cd no_ub
+clang++ -I../include -Wall -Wextra -Wpedantic -std=c++17 -fsanitize=address,undefined -fno-sanitize-recover=all ../ub_example/ub_example.cpp
+./a.out
