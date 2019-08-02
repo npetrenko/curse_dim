@@ -9,6 +9,7 @@
 #include <bellman/bellman_operators/environment.hpp>
 
 #include <gtest/gtest.h>
+#include <glog/logging.h>
 #include <random>
 
 template <int step>
@@ -267,7 +268,23 @@ TEST(StationaryEstim, SimpleModel) {
     ASSERT_TRUE(density < 0.5 + 0.1);
 }
 
+template <class MDPK, class QF>
+void TraceTrajectoriesForSimpleModes(const MDPK& mdp_kernel, const QF& qfunc_est) {
+    LOG(INFO) << "Testing policy";
+    for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
+        Particle state{ConstantInitializer(init, ParticleDim{1})};
+	LOG(INFO) << "Init state: " << state;
+        for (int i = 0; i < 10; ++i) {
+            LOG(INFO) << state << " QFunc values: " << qfunc_est.ValueAtPoint(state) << "\n";
+            mdp_kernel.Evolve(state, &state);
+        }
+	LOG(INFO) << "FINISHED TRACING\n";
+        ASSERT_TRUE(state[0]);
+    }
+}
+
 TEST(UniformBellman, SimpleModel) {
+    LOG(INFO) << "Starting UniformBellman test";
     std::mt19937 rd{1234};
     std::unique_ptr<UniformBellmanOperator> bellman_op;
     ActionConditionedKernel action_conditioned_kernel{
@@ -284,9 +301,11 @@ TEST(UniformBellman, SimpleModel) {
         bellman_op = std::move(builder).Build();
     }
 
+    LOG(INFO) << "Starting iterations";
     for (int i = 0; i < 20; ++i) {
         bellman_op->MakeIteration();
     }
+    LOG(INFO) << "Finished iterations";
 
     QFuncEstForGreedy qfunc_est{env_params, bellman_op->GetQFunc(),
                                 // Correction for importance sampling
@@ -294,19 +313,11 @@ TEST(UniformBellman, SimpleModel) {
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
-    for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
-        std::cout << "\n///////////////////////////////////////////"
-                  << "\n";
-        Particle state{ConstantInitializer(init, ParticleDim{1})};
-        for (int i = 0; i < 10; ++i) {
-            std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
-            mdp_kernel.Evolve(state, &state);
-        }
-        ASSERT_TRUE(state[0]);
-    }
+    TraceTrajectoriesForSimpleModes(mdp_kernel, qfunc_est);
 }
 
 TEST(StationaryBellmanOperator, SimpleModel) {
+    LOG(INFO) << "Starting StationaryBellman test";
     std::mt19937 rd{1234};
     ActionConditionedKernel action_conditioned_kernel{
         SimpleModel::Kernel<1>{&rd}, SimpleModel::Kernel<0>{&rd}, SimpleModel::Kernel<-1>{&rd}};
@@ -327,9 +338,11 @@ TEST(StationaryBellmanOperator, SimpleModel) {
         bellman_op = std::move(builder).Build();
     }
 
+    LOG(INFO) << "Starting iterations";
     for (int i = 0; i < 20; ++i) {
         bellman_op->MakeIteration();
     }
+    LOG(INFO) << "Finished iterations";
 
     PrevSampleReweighingHelper rew_helper{&bellman_op->GetSamplingDistribution(), std::nullopt};
     QFuncEstForGreedy qfunc_est{env_params, bellman_op->GetQFunc(), rew_helper};
@@ -337,14 +350,5 @@ TEST(StationaryBellmanOperator, SimpleModel) {
     GreedyPolicy policy{qfunc_est};
     MDPKernel mdp_kernel{action_conditioned_kernel, &policy};
 
-    for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
-        std::cout << "\n///////////////////////////////////////////"
-                  << "\n";
-        Particle state{ConstantInitializer(init, ParticleDim{1})};
-        for (int i = 0; i < 10; ++i) {
-            std::cout << state << " " << qfunc_est.ValueAtPoint(state) << "\n";
-            mdp_kernel.Evolve(state, &state);
-        }
-        ASSERT_TRUE(state[0]);
-    }
+    TraceTrajectoriesForSimpleModes(mdp_kernel, qfunc_est);
 }

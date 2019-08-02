@@ -8,8 +8,6 @@
 #include "../type_traits.hpp"
 #include "weighted_particle_clusters.hpp"
 
-#include <glog/logging.h>
-
 class StationaryDensityEstimator {
 public:
     template <class S>

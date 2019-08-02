@@ -1,5 +1,6 @@
 #include <bellman/density_estimators/stationary_estimator.hpp>
 
+#include <glog/logging.h>
 #include <thread_pool/for_loop.hpp>
 
 void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
@@ -39,6 +40,7 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
 
 namespace {
 void MakeWeighingUsual(const IKernel& kernel, VectorWeightedParticleCluster* cluster) {
+    LOG(INFO) << "Computing usual weighing";
     ParallelFor{0, cluster->size(), 1}([&, weights = cluster->GetMutableWeights()](size_t i) {
         const auto& particle = (*cluster)[i];
         FloatT& particle_weight = weights[i];
@@ -47,10 +49,12 @@ void MakeWeighingUsual(const IKernel& kernel, VectorWeightedParticleCluster* clu
             particle_weight += kernel.GetTransDensity(from_particle, particle) / cluster->size();
         }
     });
+    LOG(INFO) << "Finished";
 }
 
 void MakeWeighingHintable(const IHintableKernel& hintable_kernel,
                           VectorWeightedParticleCluster* cluster) {
+    LOG(INFO) << "Computing weighing for hintable kernel";
     using HintT = decltype(hintable_kernel.CalculateHint((*cluster)[0]));
     std::vector<HintT> hints(cluster->size());
     ParallelFor{0, cluster->size(),
@@ -68,6 +72,7 @@ void MakeWeighingHintable(const IHintableKernel& hintable_kernel,
                 cluster->size();
         }
     });
+    LOG(INFO) << "Finished weighing";
 }
 }  // namespace
 

@@ -1,11 +1,11 @@
 #include <bellman/bellman_operators/uniform_operator.hpp>
 #include <bellman/types.hpp>
 #include <thread_pool/for_loop.hpp>
+#include <glog/logging.h>
 
 #ifndef NDEBUG
 #include <fenv.h>
 #endif
-
 
 UniformBellmanOperator::UniformBellmanOperator(AbstractBellmanOperator::Params&& params,
                                                Params&& unif_params)
@@ -14,6 +14,7 @@ UniformBellmanOperator::UniformBellmanOperator(AbstractBellmanOperator::Params&&
 
 std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildImpl(
     AbstractBellmanOperator::Params&& params) && {
+    LOG(INFO) << "Started building UniformBellmanoperator";
     Params unif_params{init_radius_.value()};
 
     auto op = std::make_unique<UniformBellmanOperator>(
@@ -33,8 +34,10 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
     RandomVectorizingInitializer<MemoryView, decltype(distr), std::mt19937> initializer{
         ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.value(), distr};
 
+    LOG(INFO) << "Setting Particle cluster";
     op->qfunc_primary_.SetParticleCluster(ParticleCluster{num_particles_.value(), initializer});
     {
+        LOG(INFO) << "Initializing QFunctions";
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
         op->qfunc_primary_.SetRandom(random_device_.value(), q_init);
         op->qfunc_secondary_.SetRandom(random_device_.value(), q_init);
@@ -44,6 +47,7 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
     {
         FloatT weight =
             pow(1 / (2 * init_radius_.value()), op->GetEnvParams().ac_kernel->GetSpaceDim());
+        LOG(INFO) << "Initializing Constantweightedparticlecluster as sampling distribution";
         op->sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(
             op->qfunc_primary_.GetParticleCluster(), weight);
     }
@@ -85,19 +89,22 @@ void UniformBellmanOperator::MakeIteration() {
 }
 
 void UniformBellmanOperator::NormalizeWeights() {
+    LOG(INFO) << "Normalizing weights";
     auto& cluster = qfunc_primary_.GetParticleCluster();
-    auto num_actions = GetEnvParams().ac_kernel->GetNumActions();
-    for (size_t action_number = 0; action_number < num_actions; ++action_number) {
-        ParallelFor{0, cluster.size(), 1}([&](size_t i) {
-            FloatT sum = 0;
-            for (size_t j = 0; j < cluster.size(); ++j) {
-                sum += GetEnvParams().ac_kernel->GetTransDensityConditionally(
-                           /*from*/ cluster[i], cluster[j], action_number) /
-                       cluster.size();
-            }
-            // Importance sampling correction is also included into sum, so it may be not
-            // close to 1
-	    additional_weights_(i, action_number) = sum? 1 / sum : 0;
-        });
-    }
+    const auto num_actions = GetEnvParams().ac_kernel->GetNumActions();
+    const auto cluster_size = cluster.size();
+    ParallelFor{0, cluster_size * num_actions, 32}([&](size_t ac_i) {
+        size_t action_number = ac_i % num_actions;
+        size_t i = (ac_i - action_number) / num_actions;
+        FloatT sum = 0;
+        for (size_t j = 0; j < cluster_size; ++j) {
+            sum += GetEnvParams().ac_kernel->GetTransDensityConditionally(cluster[i], cluster[j],
+                                                                          action_number) /
+                   cluster_size;
+        }
+        // Importance sampling correction is also included into sum, so it may be not
+        // close to 1
+        additional_weights_(i, action_number) = sum ? 1 / sum : 0;
+    });
+    LOG(INFO) << "Finished normalizing wieghts";
 }

@@ -15,7 +15,7 @@ FloatT AbstractExperiment::Score() {
     MDPKernel mdp_kernel{*GetEnvParams().ac_kernel, &policy};
 
     FloatT reward = 0;
-    Particle state{ConstantInitializer(0., ParticleDim{1})};
+    Particle state{ConstantInitializer(0., ParticleDim{mdp_kernel.GetSpaceDim()})};
     for (int i = 0; i < 10; ++i) {
         size_t action = mdp_kernel.CalculateHint(state);
         reward += GetEnvParams().reward_function(state, action);

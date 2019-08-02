@@ -8,6 +8,9 @@
 #include <random>
 #include <optional>
 
+class StationaryBellmanOperator;
+using StationaryBellmanOperatorPtr = std::unique_ptr<StationaryBellmanOperator>;
+
 class StationaryBellmanOperator final : public AbstractBellmanOperator {
 public:
     class Builder;
@@ -74,7 +77,7 @@ public:
     }
 
 private:
-    std::unique_ptr<StationaryBellmanOperator> BuildImpl(AbstractBellmanOperator::Params&& params);
+    StationaryBellmanOperatorPtr BuildImpl(AbstractBellmanOperator::Params&& params);
 
     std::optional<FloatT> init_radius_;
     std::optional<FloatT> invariant_density_threshold_;

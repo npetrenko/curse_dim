@@ -113,7 +113,9 @@ public:
                       this->ValueAtIndex(next_state_index)[next_state_reaction];
         }
 
-        result /= weight_sum;
+        if (weight_sum) {
+            result /= weight_sum;
+        }
 
         return result;
     }

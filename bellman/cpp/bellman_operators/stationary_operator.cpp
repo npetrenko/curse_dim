@@ -1,5 +1,6 @@
 #include <bellman/bellman_operators/stationary_operator.hpp>
 #include <thread_pool/for_loop.hpp>
+#include <glog/logging.h>
 
 #ifndef NDEBUG
 #include <fenv.h>
@@ -11,6 +12,7 @@ StationaryBellmanOperator::StationaryBellmanOperator(AbstractBellmanOperator::Pa
 }
 std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::BuildImpl(
     AbstractBellmanOperator::Params&& params) {
+    LOG(INFO) << "Started building StationarybellmanOperator";
     Params stat_params{invariant_density_threshold_.value(), density_ratio_threshold_.value(),
                        init_radius_.value()};
 
@@ -18,6 +20,7 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
         StationaryBellmanOperator(std::move(params), std::move(stat_params)));
 
     {
+	LOG(INFO) << "Initializing QFunctions";
         auto initializer = [&] {
             return DiscreteQFuncEst{op->GetNumParticles(),
                                     op->GetEnvParams().ac_kernel->GetNumActions()};
@@ -32,15 +35,18 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
     assert(init_radius_ > 0);
     std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
 
-    RandomVectorizingInitializer<MemoryView, decltype(distr), std::mt19937> initializer{
-        ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, op->GetRD(), distr};
+    RandomVectorizingInitializer initializer{
+        ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, op->GetRD(), distr,
+        ClusterInitializationTag{}};
 
+    LOG(INFO) << "Initializing density estimator";
     op->density_estimator_ =
         std::make_unique<StationaryDensityEstimator>(nullptr, initializer, op->GetNumParticles());
 
     op->qfunc_primary_.SetParticleCluster(op->density_estimator_->GetCluster());
     op->qfunc_secondary_.SetParticleCluster(op->density_estimator_->GetCluster());
     {
+	LOG(INFO) << "Initializing QFunction values";
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
         op->qfunc_primary_.SetRandom(op->GetRD(), q_init);
         op->qfunc_secondary_.SetRandom(op->GetRD(), q_init);
@@ -110,6 +116,7 @@ void StationaryBellmanOperator::MakeIteration() {
 }
 
 void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
+    LOG(INFO) << "Started ParticleCluster update";
 #ifndef NDEBUG
     feenableexcept(FE_INVALID | FE_OVERFLOW);
 #endif
@@ -128,7 +135,7 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
 
     LOG(INFO) << "Making stationary iterations";
     density_estimator_->MakeIteration(num_iterations, GetRD());
-    LOG(INFO) << "Finished";
+    LOG(INFO) << "Finished stationary iterations";
 
     const VectorWeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
 
@@ -153,9 +160,11 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
     prev_sampling_distribution_ = std::make_unique<VectorWeightedParticleCluster>(invariant_distr);
 
     RecomputeWeights();
+    LOG(INFO) << "Finished particle cluster update";
 }
 
 void StationaryBellmanOperator::RecomputeWeights() {
+    LOG(INFO) << "Recomputing normalizing weights";
     const VectorWeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
     for (size_t action_num = 0; action_num < GetEnvParams().ac_kernel->GetNumActions();
          ++action_num) {
@@ -185,4 +194,5 @@ void StationaryBellmanOperator::RecomputeWeights() {
             }
         });
     }
+    LOG(INFO) << "Finished recomputing normalizing weights";
 }
