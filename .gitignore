@@ -8,5 +8,7 @@ reldeb/
 relwithdebinfo/
 gcc/
 clang/
+ub/
+no_ub/
 .#*
 *.so
