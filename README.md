@@ -1,3 +1,4 @@
-reproduce scripts are in .sh files
+./make_no_ub.sh makes no UB
+./make_ub.sh makes UB
 
-compiler versions in gcc_version.txt and clang_version.txt
+Though they have similar compile commands
