@@ -1,1 +1,0 @@
-/usr/bin/g++   -Wall -Wextra -Wpedantic -Wno-c++98-compat  -Wall -Wextra -Wpedantic -Wno-c++98-compat -fsanitize=address,undefined -fno-sanitize-recover=all -g -O0   CMakeFiles/ub_example.dir/ub_example/ub_example.cpp.o  -o ub_example 

@@ -1,3 +1,0 @@
-/home/nikita/projects/curse_dim/ub/CMakeFiles/rebuild_cache.dir
-/home/nikita/projects/curse_dim/ub/CMakeFiles/ub_example.dir
-/home/nikita/projects/curse_dim/ub/CMakeFiles/edit_cache.dir
