@@ -48,19 +48,14 @@ public:
     }
 
 private:
-    mutable ParticleStorage* storage_
-#ifndef NDEBUG
-    {
-        nullptr
-    }
-#endif
-    ;
+    mutable ParticleStorage* storage_{nullptr};
     size_t dim_;
 };
 
 template <class StorageT>
 class EmptyInitializer : public AbstractInitializer<EmptyInitializer<StorageT>, StorageT> {
     using BaseT = AbstractInitializer<EmptyInitializer<StorageT>, StorageT>;
+
 public:
     using BaseT::BaseT;
 
@@ -100,6 +95,7 @@ class VectorizingInitializer
       public AbstractInitializer<VectorizingInitializer<DerivedT, StorageT>, StorageT> {
 
     using BaseT = AbstractInitializer<VectorizingInitializer<DerivedT, StorageT>, StorageT>;
+
 public:
     using BaseT::BaseT;
 
@@ -120,22 +116,28 @@ protected:
 };
 
 template <class StorageT, class FuncT>
-class LambdaInitializer : public VectorizingInitializer<LambdaInitializer<StorageT, FuncT>, StorageT> {
+class LambdaInitializer
+    : public VectorizingInitializer<LambdaInitializer<StorageT, FuncT>, StorageT> {
     friend class VectorizingInitializer<LambdaInitializer<StorageT, FuncT>, StorageT>;
     using BaseT = VectorizingInitializer<LambdaInitializer<StorageT, FuncT>, StorageT>;
+
 public:
     LambdaInitializer(FuncT func, ParticleDim dim) : BaseT(dim), func_(std::move(func)) {
     }
 
-    LambdaInitializer(FuncT func, ParticleDim dim, ClusterInitializationTag) : BaseT(dim), func_(std::move(func)) {
+    LambdaInitializer(FuncT func, ParticleDim dim, ClusterInitializationTag)
+        : BaseT(dim), func_(std::move(func)) {
     }
 
-    LambdaInitializer(FuncT func, ParticleDim dim, ParticleStorage* storage) : BaseT(dim, storage), func_(std::move(func)) {
+    LambdaInitializer(FuncT func, ParticleDim dim, ParticleStorage* storage)
+        : BaseT(dim, storage), func_(std::move(func)) {
     }
+
 protected:
     inline FloatT GetIthElemImpl(size_t i) const {
-	return func_(i);
+        return func_(i);
     }
+
 private:
     FuncT func_;
 };
@@ -144,7 +146,8 @@ template <class FuncT>
 LambdaInitializer(FuncT, ParticleDim)->LambdaInitializer<ParticleStorage, FuncT>;
 
 template <class FuncT>
-LambdaInitializer(FuncT, ParticleDim, ClusterInitializationTag)->LambdaInitializer<MemoryView, FuncT>;
+LambdaInitializer(FuncT, ParticleDim, ClusterInitializationTag)
+    ->LambdaInitializer<MemoryView, FuncT>;
 
 template <class FuncT>
 LambdaInitializer(FuncT, ParticleDim, ParticleStorage*)->LambdaInitializer<MemoryView, FuncT>;
@@ -155,7 +158,8 @@ public:
     ConstantInitializer(FloatT ct, ParticleDim dim) : BaseT{dim}, ct_{ct} {
     }
 
-    ConstantInitializer(FloatT ct, ParticleDim dim, ClusterInitializationTag) : BaseT{dim}, ct_{ct} {
+    ConstantInitializer(FloatT ct, ParticleDim dim, ClusterInitializationTag)
+        : BaseT{dim}, ct_{ct} {
     }
 
     ConstantInitializer(FloatT ct, ParticleDim dim, ParticleStorage* storage)
@@ -204,7 +208,8 @@ public:
         : BaseT{dim}, rd_{rd}, dist_{std::move(dist)} {
     }
 
-    RandomVectorizingInitializer(ParticleDim dim, RandomDevT* rd, RandomDistT dist, ClusterInitializationTag)
+    RandomVectorizingInitializer(ParticleDim dim, RandomDevT* rd, RandomDistT dist,
+                                 ClusterInitializationTag)
         : BaseT{dim}, rd_{rd}, dist_{std::move(dist)} {
     }
 

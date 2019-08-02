@@ -9,17 +9,24 @@ public:
     }
 
 private:
-    void EvolveImpl(TypeErasedParticleRef from, TypeErasedParticlePtr to, std::mt19937*) const override {
-	*to = from;
+    void EvolveImpl(TypeErasedParticleRef from, TypeErasedParticlePtr to,
+                    std::mt19937*) const override {
+        *to = from;
     }
 
     FloatT GetTransDensityImpl(TypeErasedParticleRef, TypeErasedParticleRef) const override {
         return 1.;
     }
 };
+}  // namespace
+
+TEST(UB, Constructs) {
+    DiscreteQFuncEst est;
+    static_assert(std::is_base_of_v<ICloneable, DiscreteQFuncEst>);
+    ASSERT_TRUE(dynamic_cast<ICloneable*>(&est));
 }
 
-TEST(UniformOperator, Builds) {
+TEST(DISABLED_UB, Builds) {
     std::mt19937 rd{123};
     UniformBellmanOperatorPtr bellman_op;
     {

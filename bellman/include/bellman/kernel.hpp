@@ -36,9 +36,6 @@ public:
 
     inline size_t GetSpaceDim() const override {
         size_t result = std::get<0>(fixed_action_kernels_).GetSpaceDim();
-// Need to add checks
-#ifndef NDEBUG
-#endif
         return result;
     }
 
