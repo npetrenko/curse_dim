@@ -46,7 +46,7 @@ protected:                                                                 \
             throw 0;                                        \
         }                                                                  \
         auto ret = new Derived(static_cast<const Derived&>(*this));        \
-        return static_cast<std::remove_reference_t<decltype(*ret)>*>(ret); \
+        return static_cast<_CloneableImpl*>(ret); \
     }                                                                      \
                                                                            \
 private:
