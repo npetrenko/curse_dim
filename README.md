@@ -1,6 +1,6 @@
 ./make_ub makes UB
 
-./make_no_ub makes no UB -- compiler is not clang++
+./make_no_ub makes no UB -- compiler is now clang++
 
 g++ (GCC) 9.1.0
 
