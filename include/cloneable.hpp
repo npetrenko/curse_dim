@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <cassert>
 #include <typeinfo>
 
 class ICloneable {
@@ -23,9 +22,6 @@ template <class T>
 struct InheritFrom<T> : public T {
     using T::T;
 };
-
-template <class... inherit_from>
-struct InheritFromVirtual : public virtual inherit_from... {};
 
 template <class Derived, class AnotherBase, bool derived_is_abstract,
           bool base_is_cloneable = std::is_base_of_v<ICloneable, AnotherBase>>
