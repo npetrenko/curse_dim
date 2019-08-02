@@ -92,14 +92,15 @@ private:
         ImplType                                                                                  \
     };
 
-Implement(false, __CloneImpl) Implement(true, __CloneImplAbstract)
+Implement(false, __CloneImpl) 
+Implement(true, __CloneImplAbstract)
 
 #undef __CloneImpl
 #undef __CloneImplAbstract
 #undef Implement
 
-    template <class Derived, class AnotherBase = void>
-    class EnableClone : public _CloneableImpl<Derived, AnotherBase, false> {
+template <class Derived, class AnotherBase = void>
+class EnableClone : public _CloneableImpl<Derived, AnotherBase, false> {
     using _CloneableImpl<Derived, AnotherBase, false>::_CloneableImpl;
 };
 
