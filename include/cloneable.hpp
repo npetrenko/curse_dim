@@ -1,7 +1,5 @@
 #pragma once
 
-#include "type_traits.hpp"
-
 #include <memory>
 #include <cassert>
 #include <typeinfo>
@@ -72,9 +70,6 @@ private:
     /* Base is defined, and already provides ICloneable*/                                         \
     template <class Derived, class AnotherBase>                                                   \
     class _CloneableImpl<Derived, AnotherBase, IsAbstract, true> : public AnotherBase {           \
-        static_assert(type_traits::IsInheritFrom_v<AnotherBase>,                                  \
-                      "Inheritance in EnableClone can only be done through InheritFrom...<...>"); \
-                                                                                                  \
     public:                                                                                       \
         using AnotherBase::AnotherBase;                                                           \
         ImplType                                                                                  \
@@ -84,9 +79,6 @@ private:
     template <class Derived, class AnotherBase>                                                   \
     class _CloneableImpl<Derived, AnotherBase, IsAbstract, false> : public AnotherBase,           \
                                                                     public virtual ICloneable {   \
-        static_assert(type_traits::IsInheritFrom_v<AnotherBase>,                                  \
-                      "Inheritance in EnableClone can only be done through InheritFrom...<...>"); \
-                                                                                                  \
     public:                                                                                       \
         using AnotherBase::AnotherBase;                                                           \
         ImplType                                                                                  \
