@@ -3,6 +3,6 @@
 
 TEST(UB, Constructs) {
     DiscreteQFuncEst est;
-    static_assert(std::is_base_of_v<ICloneable, DiscreteQFuncEst>);
+    static_assert(std::is_convertible_v<DiscreteQFuncEst*, ICloneable*>);
     ASSERT_TRUE(dynamic_cast<ICloneable*>(&est));
 }
