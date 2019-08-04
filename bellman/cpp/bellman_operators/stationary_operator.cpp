@@ -22,8 +22,8 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
     {
 	LOG(INFO) << "Initializing QFunctions";
         auto initializer = [&] {
-            return DiscreteQFuncEst{op->GetNumParticles(),
-                                    op->GetEnvParams().ac_kernel->GetNumActions()};
+            return DiscreteQFuncEst{NumParticles{op->GetNumParticles()},
+					NumActions{op->GetEnvParams().ac_kernel->GetNumActions()}};
         };
         op->qfunc_primary_ = initializer();
         op->qfunc_secondary_ = initializer();
@@ -35,18 +35,25 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
     assert(init_radius_ > 0);
     std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
 
-    RandomVectorizingInitializer initializer{
-        ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, op->GetRD(), distr,
-        ClusterInitializationTag{}};
-
-    LOG(INFO) << "Initializing density estimator";
-    op->density_estimator_ =
-        std::make_unique<StationaryDensityEstimator>(nullptr, initializer, op->GetNumParticles());
-
-    op->qfunc_primary_.SetParticleCluster(op->density_estimator_->GetCluster());
-    op->qfunc_secondary_.SetParticleCluster(op->density_estimator_->GetCluster());
     {
-	LOG(INFO) << "Initializing QFunction values";
+        RandomVectorizingInitializer initializer{
+            ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, op->GetRD(), distr,
+            ClusterInitializationTag{}};
+
+        LOG(INFO) << "Initializing density estimator";
+
+        StationaryDensityEstimator::Builder builder;
+        builder.SetClusterSize(op->GetNumParticles())
+            .SetKernel(nullptr)
+            .SetInitializer(initializer);
+
+        op->qfunc_primary_.SetParticleCluster(builder.GetParticleClusterPtr());
+        op->qfunc_secondary_.SetParticleCluster(builder.GetParticleClusterPtr());
+
+        op->density_estimator_ = std::move(builder).Build();
+    }
+    {
+        LOG(INFO) << "Initializing QFunction values";
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
         op->qfunc_primary_.SetRandom(op->GetRD(), q_init);
         op->qfunc_secondary_.SetRandom(op->GetRD(), q_init);
@@ -141,7 +148,7 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
 
     // Computing qfunction on new sample
     {
-        DiscreteQFuncEst new_estimate{GetNumParticles(), GetEnvParams().ac_kernel->GetNumActions()};
+        DiscreteQFuncEst new_estimate{NumParticles(GetNumParticles()), NumActions(GetEnvParams().ac_kernel->GetNumActions())};
 
         ParallelFor{0, GetNumParticles(), 255}([&](size_t state_ix) {
             for (size_t action_num = 0; action_num < GetEnvParams().ac_kernel->GetNumActions();
@@ -151,7 +158,7 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
             }
         });
 
-        new_estimate.SetParticleCluster(invariant_distr);
+        new_estimate.SetParticleCluster(density_estimator_->GetClusterPtr());
         qfunc_primary_ = std::move(new_estimate);
     }
 

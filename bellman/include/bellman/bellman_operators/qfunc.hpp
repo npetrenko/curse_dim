@@ -4,14 +4,15 @@
 #include "../cloneable.hpp"
 #include "../bellman.hpp"
 #include "environment.hpp"
+#include "../types.hpp"
 
-#include <optional>
+#include <memory>
 
 class DiscreteQFuncEst final : public EnableClone<DiscreteQFuncEst, InheritFrom<IQFuncEstimate>> {
 public:
     DiscreteQFuncEst() = default;
 
-    DiscreteQFuncEst(size_t num_particles, size_t num_actions);
+    DiscreteQFuncEst(::NumParticles num_particles, ::NumActions num_actions);
 
     void SetZero();
 
@@ -22,17 +23,16 @@ public:
         }
     }
 
-    template <class ClusterT>
-    void SetParticleCluster(ClusterT&& other) {
-        particle_cluster_ = std::forward<ClusterT>(other);
+    inline void SetParticleCluster(std::shared_ptr<ParticleCluster> other) {
+        particle_cluster_ = std::move(other);
     }
 
     inline const ParticleCluster& GetParticleCluster() const {
-        return particle_cluster_.value();
+        return *particle_cluster_;
     }
 
     inline ParticleCluster& GetParticleCluster() {
-        return particle_cluster_.value();
+        return *particle_cluster_;
     }
 
     inline size_t NumActions() const override {
@@ -54,7 +54,7 @@ public:
 protected:
     std::vector<FloatT> values_;
     size_t num_actions_;
-    std::optional<ParticleCluster> particle_cluster_;
+    std::shared_ptr<ParticleCluster> particle_cluster_;
 };
 
 template <class ImportanceFuncT>

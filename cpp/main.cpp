@@ -24,12 +24,12 @@ int main(int, char** argv) {
 
     FloatT uniform_experiment_score, stationary_experiment_score;
     {
-        auto uniform_experiment = UniformExperiment::Make(builder);
-        uniform_experiment_score = uniform_experiment->Score();
-    }
-    {
         auto stationary_experiment = StationaryExperiment::Make(builder);
         stationary_experiment_score = stationary_experiment->Score();
+    }
+    {
+        auto uniform_experiment = UniformExperiment::Make(builder);
+        uniform_experiment_score = uniform_experiment->Score();
     }
     LOG(INFO) << "Uniform experiment score: " << uniform_experiment_score;
     LOG(INFO) << "Stationary experiment score: " << stationary_experiment_score;

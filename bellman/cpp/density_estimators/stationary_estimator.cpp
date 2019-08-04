@@ -10,28 +10,28 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
     }
 
     std::vector<std::mt19937> rds;
-    rds.reserve(cluster_.size());
+    rds.reserve(cluster_->size());
     assert(local_rd_initializer);
-    for (size_t i = 0; i < cluster_.size(); ++i) {
+    for (size_t i = 0; i < cluster_->size(); ++i) {
         rds.emplace_back((*local_rd_initializer)());
     }
 
     LOG(INFO) << "Entering parallel stationary loop";
-    ParallelFor{0, cluster_.size(), 1}([&](size_t i) {
+    ParallelFor{0, cluster_->size(), 1}([&](size_t i) {
         for (size_t iter_num = 0; iter_num < num_iterations; ++iter_num) {
             Particle<MemoryView>*from, *to;
             if (iter_num % 2) {
                 from = &secondary_cluster_[i];
-                to = &cluster_[i];
+                to = &(*cluster_)[i];
             } else {
-                from = &cluster_[i];
+                from = &(*cluster_)[i];
                 to = &secondary_cluster_[i];
             }
             kernel_->Evolve(*from, to, &rds[i]);
         }
     });
     if (!(num_iterations % 2)) {
-        std::swap(static_cast<ParticleCluster&>(cluster_), secondary_cluster_);
+        std::swap(static_cast<ParticleCluster&>(*cluster_), secondary_cluster_);
     }
     LOG(INFO) << "Finished stationary";
 
@@ -78,8 +78,35 @@ void MakeWeighingHintable(const IHintableKernel& hintable_kernel,
 
 void StationaryDensityEstimator::MakeWeighing() {
     if (auto hintable_ptr = dynamic_cast<IHintableKernel*>(kernel_)) {
-        MakeWeighingHintable(*hintable_ptr, &cluster_);
+        MakeWeighingHintable(*hintable_ptr, cluster_.get());
     } else {
-        MakeWeighingUsual(*kernel_, &cluster_);
+        MakeWeighingUsual(*kernel_, cluster_.get());
+    }
+}
+
+using Builder = StationaryDensityEstimator::Builder;
+void Builder::MaybeInitPrimary() {
+    if (!primary_cluster_) {
+        try {
+            primary_cluster_ = primary_cluster_builder_.value()();
+        } catch (std::bad_optional_access&) {
+            throw BuilderNotInitialized();
+        }
+    }
+}
+
+std::unique_ptr<StationaryDensityEstimator> Builder::Build() && {
+    try {
+        auto estimator =
+            std::unique_ptr<StationaryDensityEstimator>(new StationaryDensityEstimator);
+        estimator->kernel_ = kernel_.value();
+        if (!primary_cluster_) {
+            MaybeInitPrimary();
+        }
+        estimator->cluster_ = std::move(primary_cluster_.value());
+        estimator->secondary_cluster_ = secondary_cluster_builder_.value()();
+        return estimator;
+    } catch (std::bad_optional_access&) {
+        throw BuilderNotInitialized();
     }
 }

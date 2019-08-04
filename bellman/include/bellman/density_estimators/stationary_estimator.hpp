@@ -10,24 +10,11 @@
 
 class StationaryDensityEstimator {
 public:
-    template <class S>
-    StationaryDensityEstimator(RNGKernel* kernel,
-                               const AbstractInitializer<S, MemoryView>& initializer,
-                               size_t cluster_size)
-        : kernel_{kernel},
-          cluster_{cluster_size, initializer},
-          secondary_cluster_{cluster_size,
-                             EmptyInitializer<MemoryView>{ParticleDim{initializer.GetDim()}}} {
-    }
-
+    class Builder;
     void MakeIteration(size_t num_iterations, std::mt19937* local_rd_initializer);
 
     inline const VectorWeightedParticleCluster& GetCluster() const {
-        return cluster_;
-    }
-
-    inline VectorWeightedParticleCluster& GetCluster() {
-        return cluster_;
+        return *cluster_;
     }
 
     inline const IKernel& GetKernel() const {
@@ -38,10 +25,60 @@ public:
         kernel_ = new_kernel;
     }
 
+    inline std::shared_ptr<VectorWeightedParticleCluster> GetClusterPtr() const {
+	return cluster_;
+    }
+
 private:
+    StationaryDensityEstimator() = default;
     void MakeWeighing();
 
     IKernel* kernel_;
-    VectorWeightedParticleCluster cluster_;
+    std::shared_ptr<VectorWeightedParticleCluster> cluster_;
     ParticleCluster secondary_cluster_;
+};
+
+class StationaryDensityEstimator::Builder {
+public:
+    inline Builder& SetClusterSize(size_t size) {
+        cluster_size_ = NumParticles{size};
+	return *this;
+    }
+
+    template <class S>
+    Builder& SetInitializer(const AbstractInitializer<S, MemoryView>& initializer) {
+        auto prim_init = [init = type_traits::GetDeepestLevelCopy(initializer), this] {
+            return std::make_shared<VectorWeightedParticleCluster>(cluster_size_.value(), init);
+        };
+        auto sec_init = [this, dim = initializer.GetDim()] {
+            return ParticleCluster(cluster_size_.value(),
+                                   EmptyInitializer(ParticleDim(dim), ClusterInitializationTag()));
+        };
+
+        primary_cluster_builder_ = std::move(prim_init);
+        secondary_cluster_builder_ = std::move(sec_init);
+	return *this;
+    }
+
+    inline std::shared_ptr<VectorWeightedParticleCluster> GetParticleClusterPtr() {
+        MaybeInitPrimary();
+        return primary_cluster_.value();
+    }
+
+    inline Builder& SetKernel(IKernel* kernel) {
+        kernel_ = kernel;
+	return *this;
+    }
+
+    std::unique_ptr<StationaryDensityEstimator> Build() &&;
+
+private:
+    void MaybeInitPrimary();
+    std::optional<NumParticles> cluster_size_;
+    std::optional<std::function<std::shared_ptr<VectorWeightedParticleCluster>()>>
+        primary_cluster_builder_;
+    std::optional<std::function<ParticleCluster()>> secondary_cluster_builder_;
+    std::optional<IKernel*> kernel_;
+
+    std::optional<std::shared_ptr<VectorWeightedParticleCluster>> primary_cluster_;
 };

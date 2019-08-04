@@ -25,17 +25,24 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
          static_cast<MatrixDims::value_type>(op->GetEnvParams().ac_kernel->GetNumActions())});
 
     op->qfunc_primary_ =
-        DiscreteQFuncEst{num_particles_.value(), op->GetEnvParams().ac_kernel->GetNumActions()};
+        DiscreteQFuncEst{NumParticles(num_particles_.value()),
+                         NumActions(op->GetEnvParams().ac_kernel->GetNumActions())};
 
     op->qfunc_secondary_ =
-        DiscreteQFuncEst{num_particles_.value(), op->GetEnvParams().ac_kernel->GetNumActions()};
+        DiscreteQFuncEst{NumParticles(num_particles_.value()),
+                         NumActions(op->GetEnvParams().ac_kernel->GetNumActions())};
 
     std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
     RandomVectorizingInitializer<MemoryView, decltype(distr), std::mt19937> initializer{
         ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.value(), distr};
 
     LOG(INFO) << "Setting Particle cluster";
-    op->qfunc_primary_.SetParticleCluster(ParticleCluster{num_particles_.value(), initializer});
+    {
+        auto particle_cluster =
+            std::make_shared<ParticleCluster>(NumParticles(num_particles_.value()), initializer);
+        op->qfunc_primary_.SetParticleCluster(particle_cluster);
+        op->qfunc_secondary_.SetParticleCluster(std::move(particle_cluster));
+    }
     {
         LOG(INFO) << "Initializing QFunctions";
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
@@ -85,7 +92,6 @@ void UniformBellmanOperator::MakeIteration() {
     });
 
     std::swap(qfunc_primary_, qfunc_secondary_);
-    qfunc_primary_.SetParticleCluster(std::move(qfunc_secondary_.GetParticleCluster()));
 }
 
 void UniformBellmanOperator::NormalizeWeights() {

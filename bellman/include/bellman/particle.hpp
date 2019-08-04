@@ -157,8 +157,10 @@ class ParticleCluster : private std::vector<Particle<MemoryView>> {
     using const_iterator = ParentT::const_iterator;
 
 public:
+    ParticleCluster() = default;
+
     template <class DerivedT>
-    ParticleCluster(size_t size, const AbstractInitializer<DerivedT, MemoryView>& initializer);
+    ParticleCluster(NumParticles size, const AbstractInitializer<DerivedT, MemoryView>& initializer);
     ParticleCluster(const ParticleCluster& other);
     ParticleCluster(ParticleCluster&&) = default;
     ParticleCluster& operator=(const ParticleCluster& other);
@@ -240,7 +242,7 @@ bool Particle<StorageT>::operator==(const Particle<T>& other) const {
 }
 
 template <class DerivedT>
-ParticleCluster::ParticleCluster(size_t size,
+ParticleCluster::ParticleCluster(NumParticles size,
                                  const AbstractInitializer<DerivedT, MemoryView>& initializer)
     : storage_(size * initializer.GetDim()) {
     initializer.SetStorage(&storage_);

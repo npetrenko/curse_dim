@@ -18,7 +18,7 @@ public:
 class VectorWeightedParticleCluster final : public AbstractWeightedParticleCluster {
 public:
     template <class S>
-    VectorWeightedParticleCluster(size_t size,
+    VectorWeightedParticleCluster(NumParticles size,
                                   const AbstractInitializer<S, MemoryView>& initializer)
         : AbstractWeightedParticleCluster{size, initializer}, weights_(size) {
     }

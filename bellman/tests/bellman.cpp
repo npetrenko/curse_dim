@@ -203,8 +203,9 @@ FloatT GetExpectedMass(const size_t kDim) {
     KernelT kernel{&random_device};
     using InitT = RandomVectorizingInitializer<MemoryView, std::uniform_real_distribution<FloatT>,
                                                std::mt19937>;
-    ParticleCluster cluster{1024 * 256, InitT{ParticleDim{kDim}, &random_device,
-                                               std::uniform_real_distribution<FloatT>{-6, 6}}};
+    ParticleCluster cluster{
+        NumParticles(1024 * 256),
+        InitT{ParticleDim{kDim}, &random_device, std::uniform_real_distribution<FloatT>{-6, 6}}};
     Particle<ParticleStorage> origin{ZeroInitializer(ParticleDim{kDim})};
 
     FloatT prob = 0;
@@ -223,15 +224,15 @@ TEST(Probability, ARKernelSummsToOne) {
 TEST(Probability, SimpleModelKernelSummsToOne) {
     {
         FloatT prob = GetExpectedMass<SimpleModel::Kernel<-1>>(1);
-	ASSERT_NEAR(prob, 1., 0.03);
+        ASSERT_NEAR(prob, 1., 0.03);
     }
     {
         FloatT prob = GetExpectedMass<SimpleModel::Kernel<0>>(1);
-	ASSERT_NEAR(prob, 1., 0.03);
+        ASSERT_NEAR(prob, 1., 0.03);
     }
     {
         FloatT prob = GetExpectedMass<SimpleModel::Kernel<1>>(1);
-	ASSERT_NEAR(prob, 1., 0.03);
+        ASSERT_NEAR(prob, 1., 0.03);
     }
 }
 
@@ -242,30 +243,32 @@ TEST(StationaryEstim, SimpleModel) {
 
     std::uniform_real_distribution<FloatT> init_distr{0., 0.2};
 
-    StationaryDensityEstimator estimator{
-        &kernel,
-        RandomVectorizingInitializer<MemoryView, decltype(init_distr), std::mt19937>{
-            ParticleDim{1}, &rd, init_distr},
-        kClusterSize};
-    estimator.MakeIteration(100, &rd);
+    std::unique_ptr<StationaryDensityEstimator> estimator;
+    {
+        StationaryDensityEstimator::Builder builder;
+        builder.SetKernel(&kernel)
+            .SetInitializer(RandomVectorizingInitializer{ParticleDim{1}, &rd, init_distr,
+                                                         ClusterInitializationTag()})
+            .SetClusterSize(kClusterSize);
+        estimator = std::move(builder).Build();
+    }
+    estimator->MakeIteration(100, &rd);
 
     size_t leq_point{0};
     const FloatT point = 0.5;
     const FloatT perc = FloatT(3) / 4;
-    for (const Particle<MemoryView>& part : estimator.GetCluster()) {
+    for (const Particle<MemoryView>& part : estimator->GetCluster()) {
         if (part[0] < point) {
             ++leq_point;
         }
     }
     FloatT result = FloatT(leq_point) / kClusterSize;
 
-    ASSERT_TRUE(result < perc + 0.08);
-    ASSERT_TRUE(result > perc - 0.08);
+    ASSERT_NEAR(result, perc, 0.08);
 
-    FloatT density = estimator.GetCluster().GetWeights()[0];
+    FloatT density = estimator->GetCluster().GetWeights()[0];
 
-    ASSERT_TRUE(density > 0.5 - 0.1);
-    ASSERT_TRUE(density < 0.5 + 0.1);
+    ASSERT_NEAR(density, 0.5, 0.1);
 }
 
 template <class MDPK, class QF>
@@ -273,12 +276,12 @@ void TraceTrajectoriesForSimpleModes(const MDPK& mdp_kernel, const QF& qfunc_est
     LOG(INFO) << "Testing policy";
     for (FloatT init : std::array{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.}) {
         Particle state{ConstantInitializer(init, ParticleDim{1})};
-	LOG(INFO) << "Init state: " << state;
+        LOG(INFO) << "Init state: " << state;
         for (int i = 0; i < 10; ++i) {
             LOG(INFO) << state << " QFunc values: " << qfunc_est.ValueAtPoint(state) << "\n";
             mdp_kernel.Evolve(state, &state);
         }
-	LOG(INFO) << "FINISHED TRACING\n";
+        LOG(INFO) << "FINISHED TRACING\n";
         ASSERT_TRUE(state[0]);
     }
 }

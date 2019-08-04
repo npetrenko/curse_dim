@@ -28,8 +28,13 @@ public:
             bellman_op->MakeIteration();
         }
 
-        PrevSampleReweighingHelper rew_helper{&bellman_op->GetSamplingDistribution(), std::nullopt};
-        QFuncEstForGreedy qfunc_est{GetEnvParams(), std::move(*bellman_op).GetQFunc(), rew_helper};
+        auto rew_helper = [sampling_distr =
+                               bellman_op->GetSamplingDistribution()](size_t sample_index) {
+            PrevSampleReweighingHelper impl(&sampling_distr, std::nullopt);
+            return impl(sample_index);
+        };
+        QFuncEstForGreedy qfunc_est{GetEnvParams(), std::move(*bellman_op).GetQFunc(),
+                                    std::move(rew_helper)};
         return std::make_unique<std::remove_reference_t<decltype(qfunc_est)>>(std::move(qfunc_est));
     }
 };
