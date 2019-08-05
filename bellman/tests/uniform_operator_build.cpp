@@ -26,7 +26,7 @@ TEST(UB, Constructs) {
     ASSERT_TRUE(dynamic_cast<ICloneable*>(&est));
 }
 
-TEST(DISABLED_UB, Builds) {
+TEST(UB, Builds) {
     std::mt19937 rd{123};
     UniformBellmanOperatorPtr bellman_op;
     {

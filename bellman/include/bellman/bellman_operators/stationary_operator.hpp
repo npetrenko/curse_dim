@@ -25,12 +25,7 @@ public:
         return std::move(qfunc_primary_);
     }
 
-    const VectorWeightedParticleCluster& GetSamplingDistribution() const override {
-        if (!prev_sampling_distribution_.get()) {
-            throw std::runtime_error("Sampling distribution has not been initialized");
-        }
-        return *prev_sampling_distribution_;
-    }
+    const VectorWeightedParticleCluster& GetSamplingDistribution() const override;
 
 private:
     struct Params {

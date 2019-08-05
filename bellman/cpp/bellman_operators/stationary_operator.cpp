@@ -12,30 +12,29 @@ StationaryBellmanOperator::StationaryBellmanOperator(AbstractBellmanOperator::Pa
 }
 std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::BuildImpl(
     AbstractBellmanOperator::Params&& params) {
-    LOG(INFO) << "Started building StationarybellmanOperator";
+    LOG(INFO) << "Started building StationaryBellmanOperator";
     Params stat_params{invariant_density_threshold_.value(), density_ratio_threshold_.value(),
                        init_radius_.value()};
 
-    auto op = std::make_unique<StationaryBellmanOperator>(
-        StationaryBellmanOperator(std::move(params), std::move(stat_params)));
+    auto op = std::unique_ptr<StationaryBellmanOperator>(
+        new StationaryBellmanOperator(std::move(params), std::move(stat_params)));
 
     {
-	LOG(INFO) << "Initializing QFunctions";
+        LOG(INFO) << "Initializing QFunctions";
         auto initializer = [&] {
             return DiscreteQFuncEst{NumParticles{op->GetNumParticles()},
-					NumActions{op->GetEnvParams().ac_kernel->GetNumActions()}};
+                                    NumActions{op->GetEnvParams().ac_kernel->GetNumActions()}};
         };
         op->qfunc_primary_ = initializer();
         op->qfunc_secondary_ = initializer();
     }
     op->additional_weights_ = Matrix<std::vector<FloatT>>(
-        {static_cast<uint32_t>(op->GetNumParticles()),
-         static_cast<uint32_t>(op->GetEnvParams().ac_kernel->GetNumActions())});
+        {static_cast<MatrixDims::value_type>(op->GetNumParticles()),
+         static_cast<MatrixDims::value_type>(op->GetEnvParams().ac_kernel->GetNumActions())});
 
     assert(init_radius_ > 0);
-    std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
-
     {
+        std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
         RandomVectorizingInitializer initializer{
             ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, op->GetRD(), distr,
             ClusterInitializationTag{}};
@@ -66,6 +65,13 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
     return op;
 }
 
+const VectorWeightedParticleCluster& StationaryBellmanOperator::GetSamplingDistribution() const {
+    if (!prev_sampling_distribution_.get()) {
+        throw std::runtime_error("Sampling distribution has not been initialized");
+    }
+    return *prev_sampling_distribution_;
+}
+
 void StationaryBellmanOperator::MakeIteration() {
 #ifndef NDEBUG
     feenableexcept(FE_INVALID | FE_OVERFLOW);
@@ -77,19 +83,20 @@ void StationaryBellmanOperator::MakeIteration() {
 
     const auto* ac_kernel = GetEnvParams().ac_kernel.get();
 
-    ParallelFor{0, GetNumParticles(), 255}([&](size_t from_ix) {
+    ParallelFor{0, GetNumParticles(), 255}([&, num_actions = ac_kernel->GetNumActions(),
+                                            num_particles = GetNumParticles()](size_t from_ix) {
         if (density_estimator_->GetCluster().GetWeights()[from_ix] <
             kParams.invariant_density_threshold) {
             return;
         }
-        for (size_t action_number = 0; action_number < ac_kernel->GetNumActions();
-             ++action_number) {
-            qfunc_secondary_.ValueAtIndex(from_ix)[action_number] =
+        MemoryView update_view = qfunc_secondary_.ValueAtIndex(from_ix);
+        for (size_t action_number = 0; action_number < num_actions; ++action_number) {
+            update_view[action_number] =
                 GetEnvParams().reward_function(cluster[from_ix], action_number);
         }
-        for (size_t to_ix = 0; to_ix < GetNumParticles(); ++to_ix) {
-            for (size_t action_number = 0; action_number < ac_kernel->GetNumActions();
-                 ++action_number) {
+        for (size_t to_ix = 0; to_ix < num_particles; ++to_ix) {
+            ConstMemoryView qfunc_primary_view = qfunc_primary_.ValueAtIndex(to_ix);
+            for (size_t action_number = 0; action_number < num_actions; ++action_number) {
                 FloatT stationary_density = density_estimator_->GetCluster().GetWeights()[to_ix];
                 if (stationary_density < kParams.invariant_density_threshold) {
                     continue;
@@ -99,22 +106,17 @@ void StationaryBellmanOperator::MakeIteration() {
                                               cluster[from_ix], cluster[to_ix], action_number) /
                                           stationary_density;
 
-                // LOG(INFO) << weighted_density << " " << stationary_density << " "
-                //<< qfunc_primary_.ValueAtIndex(j)[reaction] << " "
-                //<< additional_weights_[i][action_number];
-
                 if (qfunc_primary_.ValueAtIndex(to_ix)[reaction] > 1e2) {
-                    LOG(INFO) << "Bad qfunc value, terminating";
-                    std::terminate();
+                    LOG(FATAL) << "Bad qfunc value, terminating";
                 }
 
                 if (weighted_density > kParams.density_ratio_threshold) {
                     continue;
                 }
 
-                qfunc_secondary_.ValueAtIndex(from_ix)[action_number] +=
-                    GetGamma() * weighted_density * qfunc_primary_.ValueAtIndex(to_ix)[reaction] *
-                    additional_weights_(from_ix, action_number) / GetNumParticles();
+                update_view[action_number] +=
+                    GetGamma() * weighted_density * qfunc_primary_view[reaction] *
+                    additional_weights_(from_ix, action_number) / num_particles;
             }
         }
     });
@@ -148,12 +150,14 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
 
     // Computing qfunction on new sample
     {
-        DiscreteQFuncEst new_estimate{NumParticles(GetNumParticles()), NumActions(GetEnvParams().ac_kernel->GetNumActions())};
+        DiscreteQFuncEst new_estimate{NumParticles(GetNumParticles()),
+                                      NumActions(GetEnvParams().ac_kernel->GetNumActions())};
 
         ParallelFor{0, GetNumParticles(), 255}([&](size_t state_ix) {
+            MemoryView new_estimate_view = new_estimate.ValueAtIndex(state_ix);
             for (size_t action_num = 0; action_num < GetEnvParams().ac_kernel->GetNumActions();
                  ++action_num) {
-                new_estimate.ValueAtIndex(state_ix)[action_num] =
+                new_estimate_view[action_num] =
                     current_qfunc_estimator.ValueAtPoint(invariant_distr[state_ix], action_num);
             }
         });
@@ -173,33 +177,35 @@ void StationaryBellmanOperator::UpdateParticleCluster(size_t num_iterations) {
 void StationaryBellmanOperator::RecomputeWeights() {
     LOG(INFO) << "Recomputing normalizing weights";
     const VectorWeightedParticleCluster& invariant_distr = density_estimator_->GetCluster();
-    for (size_t action_num = 0; action_num < GetEnvParams().ac_kernel->GetNumActions();
-         ++action_num) {
-        ParallelFor{0, GetNumParticles(), 255}([&](size_t target_ix) {
-            FloatT sum = 0;
-            for (size_t particle_ix = 0; particle_ix < GetNumParticles(); ++particle_ix) {
-                const auto& particle = invariant_distr[particle_ix];
+    const auto num_actions = GetEnvParams().ac_kernel->GetNumActions();
+    ParallelFor{0, GetNumParticles() * num_actions,
+                32}([&, num_particles = GetNumParticles()](size_t t_p_a) {
+        size_t action_num = t_p_a % num_actions;
+        size_t target_ix = (t_p_a - action_num) / num_actions;
+        FloatT sum = 0;
+        for (size_t particle_ix = 0; particle_ix < num_particles; ++particle_ix) {
+            const auto& particle = invariant_distr[particle_ix];
 
-                // ensure that checks run only once
-                if (!target_ix && !action_num) {
-                    assert(particle == qfunc_primary_.GetParticleCluster()[particle_ix]);
-                }
-
-                FloatT pmass = invariant_distr.GetWeights()[particle_ix];
-                if (pmass == 0) {
-                    continue;
-                }
-                sum += GetEnvParams().ac_kernel->GetTransDensityConditionally(
-                           qfunc_primary_.GetParticleCluster()[target_ix], particle, action_num) /
-                       (pmass * GetNumParticles());
+            // ensure that checks run only once
+            if (!target_ix && !action_num) {
+                assert(particle == qfunc_primary_.GetParticleCluster()[particle_ix]);
             }
-            additional_weights_(target_ix, action_num) = sum ? (1 / sum) : 0;
 
-            if ((sum > 10) || (sum && (sum < 0.1))) {
-                LOG(INFO) << "Strange additional weights: " << 1 / sum;
-                std::terminate();
+            FloatT pmass = invariant_distr.GetWeights()[particle_ix];
+            if (pmass == 0) {
+                continue;
             }
-        });
-    }
+            sum += GetEnvParams().ac_kernel->GetTransDensityConditionally(
+                       qfunc_primary_.GetParticleCluster()[target_ix], particle, action_num) /
+                   (pmass * num_particles);
+        }
+        additional_weights_(target_ix, action_num) = sum ? (1 / sum) : 0;
+
+        /*
+        if ((sum > 30) || (sum && (sum < 0.1))) {
+            LOG(FATAL) << "Strange additional weights: " << 1 / sum;
+        }
+        */
+    });
     LOG(INFO) << "Finished recomputing normalizing weights";
 }

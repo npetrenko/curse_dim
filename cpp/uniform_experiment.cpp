@@ -3,13 +3,18 @@
 #include <bellman/bellman_operators/uniform_operator.hpp>
 #include <glog/logging.h>
 
-class UniformExperimentImpl : public AbstractExperiment {
+class UniformExperimentImpl final : public AbstractExperiment {
 public:
     UniformExperimentImpl(AbstractExperiment::Builder builder)
         : AbstractExperiment(std::move(builder).Build()) {
     }
 
-    std::unique_ptr<IQFuncEstimate> EstimateQFunc() override {
+    std::string GetName() const override {
+	return "UniformExperiment";
+    }
+
+private:
+    std::unique_ptr<IQFuncEstimate> EstimateQFuncImpl() override {
 	LOG(INFO) << "Initializing uniform bellman op";
         UniformBellmanOperatorPtr bellman_op;
         {

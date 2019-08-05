@@ -47,11 +47,17 @@ template <bool is_const>
 class MemoryViewTemplate : public StridedMemoryViewTemplate<is_const> {
     using BaseT = StridedMemoryViewTemplate<is_const>;
 
+    template <bool ic>
+    friend class MemoryViewTemplate;
+
 public:
     using iterator = ContiguousIterator<FloatT, is_const>;
     using const_iterator = ContiguousIterator<FloatT, true>;
 
     inline MemoryViewTemplate(typename BaseT::DataPtrT data, size_t size) noexcept : BaseT(data, size, 1) {
+    }
+
+    inline MemoryViewTemplate(MemoryViewTemplate<false> other) noexcept : BaseT(&*other.begin(), other.size(), 1) {
     }
 
     inline iterator begin() const {

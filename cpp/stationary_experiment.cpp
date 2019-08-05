@@ -9,7 +9,12 @@ public:
         : AbstractExperiment(std::move(builder).Build()) {
     }
 
-    std::unique_ptr<IQFuncEstimate> EstimateQFunc() override {
+    std::string GetName() const override {
+	return "StationaryExperiment";
+    }
+
+public:
+    std::unique_ptr<IQFuncEstimate> EstimateQFuncImpl() override {
         LOG(INFO) << "Initializing uniform bellman op";
         StationaryBellmanOperatorPtr bellman_op;
         {

@@ -127,7 +127,7 @@ void Kernel<action_direction>::EvolveHelper(TypeErasedParticleRef from, TypeEras
     CheckArgs(*to);
     for (size_t pend_ix = 0; pend_ix < pendulums_.size(); ++pend_ix) {
         Particle<ConstMemoryView> from_p{ConstMemoryView{&from[2 * pend_ix], 2}};
-        Particle<MemoryView> to_p{MemoryView{&(*to)[2 * pend_ix], 2}};
+        Particle<MemoryView> to_p{MemoryView{&((*to)[2 * pend_ix]), 2}};
         if constexpr (std::is_same_v<RNGType, NullType>) {
             (void)rd;
             pendulums_[pend_ix].Evolve(from_p, &to_p);
@@ -158,9 +158,9 @@ void Kernel<action_direction>::CheckArgs(TypeErasedParticleRef part) const {
 }
 
 FloatT RewardFunc::operator()(TypeErasedParticleRef state, size_t /*action*/) const {
-    FloatT val = 1.;
+    FloatT val = -1.;
     for (size_t i = 0; i < state.GetDim(); i += 2) {
-        val = std::min(-sin(state[i]), val);
+        val = std::max(-sin(state[i]), val);
     }
     return val;
 }

@@ -49,6 +49,11 @@ public:
     template <class T>
     bool operator==(const Particle<T>& other) const;
 
+    template <class T>
+    bool operator!=(const Particle<T>& other) const {
+	return !(other == *this);
+    }
+
     Particle& operator*=(FloatT val){
         return ApplyUnaryOp([val](auto& x) { x *= val; });
     }

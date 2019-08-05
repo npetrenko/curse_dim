@@ -9,7 +9,7 @@ FloatT GetExpectedMass(const IKernel& kernel, std::mt19937* rd, const FloatT kIn
     auto lamb_init = [&](size_t) { return distr(*rd); };
     auto initializer = LambdaInitializer(lamb_init, ParticleDim{kDim}, ClusterInitializationTag{});
 
-    ParticleCluster cluster{kNumParticles, initializer};
+    ParticleCluster cluster{NumParticles(kNumParticles), initializer};
 
     FloatT prob = 0;
     for (const auto& elem : cluster) {
@@ -32,6 +32,33 @@ TEST(Pendulum, SummsToOne) {
             std::cout << origin << "\n";
             FloatT emass = GetExpectedMass(kernel, &rd, M_PI, 16 * 1024 * 1024, origin);
             ASSERT_NEAR(emass, 1., 0.05);
+        }
+    }
+}
+
+TEST(Pendulum, NonTrivial) {
+    std::mt19937 rd {
+        1234
+    };
+    for (size_t num_pends = 1; num_pends <= 4; ++num_pends) {
+        Particle<ParticleStorage> origin(ZeroInitializer(ParticleDim{num_pends *2}));
+        {
+            Particle<ParticleStorage> to = origin;
+            Pendulum::Kernel<-1> kernel(NumPendulums(num_pends), &rd);
+	    kernel.Evolve(origin, &to);
+	    ASSERT_NE(origin, to);
+        }
+        {
+            Particle<ParticleStorage> to = origin;
+            Pendulum::Kernel<0> kernel(NumPendulums(num_pends), &rd);
+	    kernel.Evolve(origin, &to);
+	    ASSERT_NE(origin, to);
+        }
+        {
+            Particle<ParticleStorage> to = origin;
+            Pendulum::Kernel<1> kernel(NumPendulums(num_pends), &rd);
+	    kernel.Evolve(origin, &to);
+	    ASSERT_NE(origin, to);
         }
     }
 }

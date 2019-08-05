@@ -13,6 +13,7 @@ set(CMAKE_CXX_FLAGS_RELASAN "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fn
 
 find_package(glog 0.4.0 REQUIRED)
 find_package(GTest REQUIRED)
+find_package(gflags REQUIRED)
 add_subdirectory(bellman)
 enable_testing()
 
@@ -27,13 +28,13 @@ function(prepend var prefix)
   set(${var} ${listVar} PARENT_SCOPE)
 endfunction()
 
-set(SOURCES pendulum.cpp uniform_experiment.cpp stationary_experiment.cpp experiment.cpp)
+set(SOURCES pendulum.cpp uniform_experiment.cpp stationary_experiment.cpp experiment.cpp experiment_printer.cpp)
 prepend(SOURCES ${CPP_DIR} ${SOURCES})
 add_library(curse_dim ${SOURCES})
 target_include_directories(curse_dim PUBLIC include)
 target_link_libraries(curse_dim bellman)
 
-set(TEST_SOURCES pendulum_kernel.cpp)
+set(TEST_SOURCES pendulum_kernel.cpp main.cpp)
 prepend(TEST_SOURCES ${TEST_DIR} ${TEST_SOURCES})
 add_executable(curse_tests ${TEST_SOURCES})
 target_link_libraries(curse_tests curse_dim gtest glog::glog)
@@ -41,4 +42,4 @@ add_test(curse_tests curse_tests)
 set_target_properties(curse_tests PROPERTIES EXCLUDE_FROM_ALL 1)
 
 add_executable(main "${CPP_DIR}/main.cpp")
-target_link_libraries(main curse_dim)
+target_link_libraries(main curse_dim gflags)

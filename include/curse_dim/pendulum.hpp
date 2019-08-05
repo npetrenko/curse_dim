@@ -10,7 +10,7 @@ inline constexpr FloatT kActionForce = 1.;
 inline constexpr FloatT kDeltaTime = 0.2;
 inline constexpr FloatT kG = 9.8;
 inline constexpr FloatT kResistance = 0.02;
-inline constexpr std::array<FloatT, 2> kNoiseStrength = {.8, .2};
+inline constexpr std::array<FloatT, 2> kNoiseStrength = {1., 1.};
 
 inline std::array<std::uniform_real_distribution<FloatT>, 2> GetNoiseDistr() {
     return {std::uniform_real_distribution<FloatT>{-kNoiseStrength[0], kNoiseStrength[0]},
