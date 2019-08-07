@@ -96,7 +96,7 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
         {static_cast<MatrixDims::value_type>(impl->GetNumParticles()),
          static_cast<MatrixDims::value_type>(impl->GetEnvParams().ac_kernel->GetNumActions())});
 
-    assert(init_radius_ > 0);
+    assert(init_radius_.Value() > 0);
     {
         std::uniform_real_distribution<FloatT> distr{-init_radius_.Value(), init_radius_.Value()};
         RandomVectorizingInitializer initializer{

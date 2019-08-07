@@ -2,6 +2,7 @@
 #include <mutex>
 #include <thread_pool/for_loop.hpp>
 #include <glog/logging.h>
+#include <bellman/threading.hpp>
 
 EnvParams BuildEnvironment(NumPendulums num_pendulums, std::mt19937* rd) {
     ActionConditionedKernel action_conditioned_kernel{Pendulum::Kernel<-1>{num_pendulums, rd},
@@ -24,7 +25,7 @@ FloatT AbstractExperiment::Score() {
     }
 
     VLOG(3) << "Making scoring";
-    std::vector<std::mt19937> rds;
+    std::vector<AlignToCacheline<std::mt19937>> rds;
     rds.reserve(kNumRuns);
     {
         std::mt19937 init = kParams.random_device_for_scoring;
@@ -47,7 +48,7 @@ FloatT AbstractExperiment::Score() {
         for (int step = 0; step < kNumSteps; ++step) {
             size_t action = mdp_kernel.CalculateHint(state);
             reward += GetEnvParams().reward_function(state, action);
-            mdp_kernel.EvolveWithHint(state, &evolve_to, &rds[i], &action);
+            mdp_kernel.EvolveWithHint(state, &evolve_to, &rds[i].data, &action);
             std::copy(evolve_to.begin(), evolve_to.end(), state.begin());
         }
         std::lock_guard lock(mut);

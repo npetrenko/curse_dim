@@ -1,4 +1,5 @@
 #include <bellman/density_estimators/stationary_estimator.hpp>
+#include <bellman/threading.hpp>
 
 #include <glog/logging.h>
 #include <thread_pool/for_loop.hpp>
@@ -9,7 +10,7 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
         return;
     }
 
-    std::vector<std::mt19937> rds;
+    std::vector<AlignToCacheline<std::mt19937>> rds;
     rds.reserve(cluster_->size());
     assert(local_rd_initializer);
     for (size_t i = 0; i < cluster_->size(); ++i) {
@@ -27,7 +28,7 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
                 from = &(*cluster_)[i];
                 to = &secondary_cluster_[i];
             }
-            kernel_->Evolve(*from, to, &rds[i]);
+            kernel_->Evolve(*from, to, &rds[i].data);
         }
     });
     if (!(num_iterations % 2)) {
