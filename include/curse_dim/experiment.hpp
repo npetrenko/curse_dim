@@ -9,18 +9,22 @@
 
 EnvParams BuildEnvironment(NumPendulums num_pendulums, std::mt19937* rd);
 
-using NumIterations = NamedValue<size_t, class _NumIterationsTag>;
+using TargetNumIterations = NamedValue<size_t, class _TargetNumIterationsTag>;
 
 class AbstractExperiment {
     using EWrapper = ThrowWrap<ExperimentNotRunException>;
 public:
+    enum class IterType { kExhaustion, kSingle };
+
     using DurT = std::chrono::milliseconds;
     class Builder;
 
     FloatT Score();
-    std::unique_ptr<IQFuncEstimate> EstimateQFunc();
-    DurT GetQFuncEstDuration() const;
+
+    DurT GetIterDuration() const;
     DurT GetSimDuration() const;
+    void MakeIteration(IterType type);
+
     virtual std::string GetName() const = 0;
 
     virtual ~AbstractExperiment() = default;
@@ -30,7 +34,7 @@ public:
     }
 
     inline size_t GetNumIterations() const {
-        return kParams.num_iterations;
+        return last_iteration_data_.iter_num;
     }
 
     inline size_t GetNumPendulums() const {
@@ -42,7 +46,7 @@ public:
     }
 
     inline FloatT GetScore() const {
-	return EWrapper::Wrap(score_);
+	return EWrapper::Wrap(last_score_data_.score);
     }
 
     inline std::mt19937* GetRandomDevice() {
@@ -52,15 +56,17 @@ public:
 private:
     struct Params {
         NumParticles num_particles;
-        NumIterations num_iterations;
+	std::optional<TargetNumIterations> target_num_iterations;
         NumPendulums num_pendulums;
         EnvParams environment;
 	std::unique_ptr<std::mt19937> random_device;
-	const std::mt19937 random_device_for_scoring;
+	std::mt19937 random_device_for_scoring;
     };
 
 protected:
-    virtual std::unique_ptr<IQFuncEstimate> EstimateQFuncImpl() = 0;
+    IQFuncEstimate* EstimateQFunc();
+    virtual IQFuncEstimate* EstimateQFuncImpl() = 0;
+    virtual void MakeIterationImpl() = 0;
 
     AbstractExperiment(Params params);
 
@@ -70,16 +76,33 @@ protected:
 
 private:
     const Params kParams;
-    std::optional<DurT> qfunc_est_duration_;
-    std::optional<DurT> sim_duration_;
-    std::optional<FloatT> score_;
+
+    struct LastIterData {
+	inline void Reset() {
+	    iter_duration = std::nullopt;
+	}
+        size_t iter_num{0};
+	std::optional<DurT> iter_duration;
+    };
+
+    struct LastScoreData {
+        inline void Reset() {
+            score = std::nullopt;
+            sim_duration = std::nullopt;
+        }
+        std::optional<FloatT> score;
+        std::optional<DurT> sim_duration;
+    };
+
+    LastIterData last_iteration_data_;
+    LastScoreData last_score_data_;
 };
 
 class AbstractExperiment::Builder  {
     using EWrapper = ThrowWrap<BuilderNotInitialized>;
 public:
     Builder& SetNumParticles(size_t val);
-    Builder& SetNumIterations(size_t val);
+    Builder& SetTargetNumIterations(size_t val);
     Builder& SetNumPendulums(size_t val);
     Builder& SetRandomDevice(const std::mt19937& rd);
 
@@ -108,7 +131,7 @@ private:
 	RDHolder& operator=(RDHolder&&) = default;
     };
     std::optional<NumParticles> num_particles_;
-    std::optional<NumIterations> num_iterations_;
+    std::optional<TargetNumIterations> num_iterations_;
     std::optional<NumPendulums> num_pendulums_;
     std::optional<RDHolder> random_device_;
 };

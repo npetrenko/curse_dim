@@ -14,34 +14,50 @@ public:
     }
 
 public:
-    std::unique_ptr<IQFuncEstimate> EstimateQFuncImpl() override {
-        LOG(INFO) << "Initializing uniform bellman op";
-        StationaryBellmanOperatorPtr bellman_op;
-        {
-            StationaryBellmanOperator::Builder builder;
-            builder.SetInitRadius(M_PI)
-                .SetEnvParams(GetEnvParams())
-                .SetNumParticles(GetNumParticles())
-                .SetRandomDevice(GetRandomDevice())
-                .SetNumBurninIter(1)
-                .SetDensityRatioThreshold(100.)
-                .SetInvariantDensityThreshold(1e-3);
-            bellman_op = std::move(builder).Build();
-        }
-        for (size_t i = 0; i < GetNumIterations(); ++i) {
-            LOG(INFO) << "Started iter " << i;
-            bellman_op->MakeIteration();
-        }
+    void MakeIterationImpl() override {
+	last_qfunc_est_.reset(nullptr);
+	MaybeInitializeBellmanOp();
+	bellman_op_->MakeIteration();
+    }
+
+    IQFuncEstimate* EstimateQFuncImpl() override {
+	if (!bellman_op_) {
+	    throw BuilderNotInitialized();
+	}
+	if (last_qfunc_est_) {
+	    return last_qfunc_est_.get();
+	}
 
         auto rew_helper = [sampling_distr =
-                               bellman_op->GetSamplingDistribution()](size_t sample_index) {
+                               bellman_op_->GetSamplingDistribution()](size_t sample_index) {
             PrevSampleReweighingHelper impl(&sampling_distr, std::nullopt);
             return impl(sample_index);
         };
-        QFuncEstForGreedy qfunc_est{GetEnvParams(), std::move(*bellman_op).GetQFunc(),
-                                    std::move(rew_helper)};
-        return std::make_unique<std::remove_reference_t<decltype(qfunc_est)>>(std::move(qfunc_est));
+
+        last_qfunc_est_ = std::unique_ptr<IQFuncEstimate>(
+            new QFuncEstForGreedy(GetEnvParams(), bellman_op_->GetQFunc(), std::move(rew_helper)));
+        return last_qfunc_est_.get();
     }
+
+    void MaybeInitializeBellmanOp() {
+        if (bellman_op_) {
+            return;
+        }
+
+        VLOG(3) << "Initializing stationary bellman op";
+        StationaryBellmanOperator::Builder builder;
+        builder.SetInitRadius(M_PI)
+            .SetEnvParams(GetEnvParams())
+            .SetNumParticles(GetNumParticles())
+            .SetRandomDevice(GetRandomDevice())
+            .SetNumBurninIter(1)
+            .SetDensityRatioThreshold(100.)
+            .SetInvariantDensityThreshold(1e-3);
+        bellman_op_ = std::move(builder).Build();
+    }
+
+    StationaryBellmanOperatorPtr bellman_op_{nullptr};
+    std::unique_ptr<IQFuncEstimate> last_qfunc_est_{nullptr};
 };
 
 namespace StationaryExperiment {

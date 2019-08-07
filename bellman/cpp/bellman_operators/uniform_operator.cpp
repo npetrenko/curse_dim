@@ -14,7 +14,7 @@ UniformBellmanOperator::UniformBellmanOperator(AbstractBellmanOperator::Params&&
 
 std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildImpl(
     AbstractBellmanOperator::Params&& params) && {
-    LOG(INFO) << "Started building UniformBellmanOperator";
+    VLOG(4) << "Started building UniformBellmanOperator";
     Params unif_params{init_radius_.value()};
 
     auto op = std::unique_ptr<UniformBellmanOperator>(
@@ -37,7 +37,7 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
         ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.value(), distr,
         ClusterInitializationTag()};
 
-    LOG(INFO) << "Setting ParticleCluster";
+    VLOG(4) << "Setting ParticleCluster";
     {
         auto particle_cluster =
             std::make_shared<ParticleCluster>(NumParticles(num_particles_.value()), initializer);
@@ -45,7 +45,7 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
         op->qfunc_secondary_.SetParticleCluster(std::move(particle_cluster));
     }
     {
-        LOG(INFO) << "Initializing QFunctions";
+        VLOG(4) << "Initializing QFunctions";
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
         op->qfunc_primary_.SetRandom(random_device_.value(), q_init);
         op->qfunc_secondary_.SetRandom(random_device_.value(), q_init);
@@ -55,7 +55,7 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
     {
         FloatT weight =
             pow(1 / (2 * init_radius_.value()), op->GetEnvParams().ac_kernel->GetSpaceDim());
-        LOG(INFO) << "Initializing ConstantWeightedParticleCluster as sampling distribution";
+        VLOG(4) << "Initializing ConstantWeightedParticleCluster as sampling distribution";
         op->sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(
             op->qfunc_primary_.GetParticleCluster(), weight);
     }
@@ -96,7 +96,7 @@ void UniformBellmanOperator::MakeIteration() {
 }
 
 void UniformBellmanOperator::NormalizeWeights() {
-    LOG(INFO) << "Normalizing weights";
+    VLOG(4) << "Normalizing weights";
     const ParticleCluster& cluster = qfunc_primary_.GetParticleCluster();
     const auto num_actions = GetEnvParams().ac_kernel->GetNumActions();
     const auto cluster_size = cluster.size();
@@ -113,5 +113,5 @@ void UniformBellmanOperator::NormalizeWeights() {
         // close to 1
         additional_weights_(i, action_number) = sum ? 1 / sum : 0;
     });
-    LOG(INFO) << "Finished normalizing weights";
+    VLOG(4) << "Finished normalizing weights";
 }

@@ -22,22 +22,30 @@ int main(int argc, char** argv) {
     output_file.open(FLAGS_output_file.c_str(), std::ios::trunc);
 
     printer.PrintHeader(output_file);
-    for (const size_t kNumPendulums : {2}) {
-        constexpr size_t kNumIterations = 4;
-        for (const size_t kNumParticles : {128, 256, 2048*16}) {
+    output_file.close();
+    for (const size_t kNumPendulums : {1}) {
+        for (size_t kNumParticles = 128; kNumParticles < 2048; kNumParticles += 128) {
             AbstractExperiment::Builder builder;
-            builder.SetNumIterations(kNumIterations)
-                .SetNumParticles(kNumParticles)
+            builder.SetNumParticles(kNumParticles)
                 .SetNumPendulums(kNumPendulums)
                 .SetRandomDevice(std::mt19937(rd));
-
             std::unique_ptr uniform_experiment = UniformExperiment::Make(builder);
-            uniform_experiment->Score();
-            printer.PrintBody(output_file, *uniform_experiment);
-
             std::unique_ptr stationary_experiment = StationaryExperiment::Make(builder);
-            stationary_experiment->Score();
-            printer.PrintBody(output_file, *stationary_experiment);
+
+            for (size_t iter = 1; iter < 40; ++iter) {
+                VLOG(2) << "kNumPendulums: " << kNumPendulums
+                        << ", kNumParticles: " << kNumParticles << " iter: " << iter;
+                uniform_experiment->MakeIteration(AbstractExperiment::IterType::kSingle);
+                stationary_experiment->MakeIteration(AbstractExperiment::IterType::kSingle);
+
+                uniform_experiment->Score();
+                stationary_experiment->Score();
+
+		output_file.open(FLAGS_output_file.c_str(), std::ios::app);
+                printer.PrintBody(output_file, *uniform_experiment);
+                printer.PrintBody(output_file, *stationary_experiment);
+		output_file.close();
+            }
         }
     }
     return 0;

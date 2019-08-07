@@ -16,7 +16,7 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
         rds.emplace_back((*local_rd_initializer)());
     }
 
-    LOG(INFO) << "Entering parallel stationary loop";
+    VLOG(4) << "Entering parallel stationary loop";
     ParallelFor{0, cluster_->size(), 1}([&](size_t i) {
         for (size_t iter_num = 0; iter_num < num_iterations; ++iter_num) {
             Particle<MemoryView>*from, *to;
@@ -33,14 +33,14 @@ void StationaryDensityEstimator::MakeIteration(size_t num_iterations,
     if (!(num_iterations % 2)) {
         std::swap(static_cast<ParticleCluster&>(*cluster_), secondary_cluster_);
     }
-    LOG(INFO) << "Finished stationary";
+    VLOG(4) << "Finished stationary";
 
     MakeWeighing();
 }
 
 namespace {
 void MakeWeighingUsual(const IKernel& kernel, VectorWeightedParticleCluster* cluster) {
-    LOG(INFO) << "Computing usual weighing";
+    VLOG(4) << "Computing usual weighing";
     ParallelFor{0, cluster->size(), 1}([&, weights = cluster->GetMutableWeights()](size_t i) {
         const auto& particle = (*cluster)[i];
         FloatT& particle_weight = weights[i];
@@ -49,12 +49,12 @@ void MakeWeighingUsual(const IKernel& kernel, VectorWeightedParticleCluster* clu
             particle_weight += kernel.GetTransDensity(from_particle, particle) / cluster->size();
         }
     });
-    LOG(INFO) << "Finished";
+    VLOG(4) << "Finished";
 }
 
 void MakeWeighingHintable(const IHintableKernel& hintable_kernel,
                           VectorWeightedParticleCluster* cluster) {
-    LOG(INFO) << "Computing weighing for hintable kernel";
+    VLOG(4) << "Computing weighing for hintable kernel";
     using HintT = decltype(hintable_kernel.CalculateHint((*cluster)[0]));
     std::vector<HintT> hints(cluster->size());
     ParallelFor{0, cluster->size(),
@@ -72,7 +72,7 @@ void MakeWeighingHintable(const IHintableKernel& hintable_kernel,
                 cluster->size();
         }
     });
-    LOG(INFO) << "Finished weighing";
+    VLOG(4) << "Finished weighing";
 }
 }  // namespace
 

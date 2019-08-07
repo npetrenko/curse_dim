@@ -14,27 +14,41 @@ public:
     }
 
 private:
-    std::unique_ptr<IQFuncEstimate> EstimateQFuncImpl() override {
-	LOG(INFO) << "Initializing uniform bellman op";
-        UniformBellmanOperatorPtr bellman_op;
-        {
-            UniformBellmanOperator::Builder builder;
-            builder.SetInitRadius(M_PI)
-                .SetEnvParams(GetEnvParams())
-                .SetNumParticles(GetNumParticles())
-                .SetRandomDevice(GetRandomDevice());
-            bellman_op = std::move(builder).Build();
-        }
-        for (size_t i = 0; i < GetNumIterations(); ++i) {
-	    LOG(INFO) << "Started iter " << i;
-            bellman_op->MakeIteration();
-        }
+    void MakeIterationImpl() override {
+        last_qfunc_est_.reset(nullptr);
+	MaybeInitializeBellmanOp();
+        bellman_op_->MakeIteration();
+    }
+
+    IQFuncEstimate* EstimateQFuncImpl() override {
+	if (!bellman_op_) {
+	    throw ExperimentNotRunException();
+	}
+	if (last_qfunc_est_) {
+	    return last_qfunc_est_.get();
+	}
 
         auto importance_function = [=](size_t) { return 1 / pow(2 * M_PI, GetNumPendulums() * 2); };
-        QFuncEstForGreedy qfunc_est(GetEnvParams(), std::move(*bellman_op).GetQFunc(),
-                                    importance_function);
-        return std::make_unique<std::remove_reference_t<decltype(qfunc_est)>>(std::move(qfunc_est));
+        last_qfunc_est_ = std::unique_ptr<IQFuncEstimate>(
+            new QFuncEstForGreedy(GetEnvParams(), bellman_op_->GetQFunc(), importance_function));
+        return last_qfunc_est_.get();
     }
+
+    void MaybeInitializeBellmanOp() {
+        if (bellman_op_) {
+            return;
+        }
+	VLOG(3) << "Initializing uniform bellman op";
+        UniformBellmanOperator::Builder builder;
+        builder.SetInitRadius(M_PI)
+            .SetEnvParams(GetEnvParams())
+            .SetNumParticles(GetNumParticles())
+            .SetRandomDevice(GetRandomDevice());
+        bellman_op_ = std::move(builder).Build();
+    }
+
+    UniformBellmanOperatorPtr bellman_op_{nullptr};
+    std::unique_ptr<IQFuncEstimate> last_qfunc_est_{nullptr};
 };
 
 namespace UniformExperiment {
