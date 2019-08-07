@@ -1,55 +1,33 @@
 #pragma once
 
-#include "../bellman.hpp"
 #include "abstract_bellman.hpp"
-#include "../matrix.hpp"
-#include "../density_estimators/stationary_estimator.hpp"
-
-#include <random>
 #include <optional>
 
 class StationaryBellmanOperator;
 using StationaryBellmanOperatorPtr = std::unique_ptr<StationaryBellmanOperator>;
 
-class StationaryBellmanOperator final : public AbstractBellmanOperator {
+class StationaryBellmanOperator : public IBellmanOperator {
 public:
     class Builder;
 
     void MakeIteration() override;
-
-    inline const DiscreteQFuncEst& GetQFunc() const& override {
-        return qfunc_primary_;
-    }
-
-    inline DiscreteQFuncEst GetQFunc() && override {
-        return std::move(qfunc_primary_);
-    }
-
+    const DiscreteQFuncEst& GetQFunc() const& override;
+    DiscreteQFuncEst GetQFunc() && override;
     const VectorWeightedParticleCluster& GetSamplingDistribution() const override;
 
+    ~StationaryBellmanOperator();
+
 private:
-    struct Params {
-        FloatT invariant_density_threshold;
-        FloatT density_ratio_threshold;
-        FloatT init_radius;
-    };
+    StationaryBellmanOperator(Builder&&);
+    class Impl;
 
-    const Params kParams;
-
-    StationaryBellmanOperator(AbstractBellmanOperator::Params&&, Params&& params);
-    void UpdateParticleCluster(size_t num_iterations);
-
-    void RecomputeWeights();
-
-    DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
-    std::unique_ptr<StationaryDensityEstimator> density_estimator_{nullptr};
-    Matrix<std::vector<FloatT>> additional_weights_;
-    std::unique_ptr<VectorWeightedParticleCluster> prev_sampling_distribution_{nullptr};
+    std::unique_ptr<Impl> impl_;
 };
 
 class StationaryBellmanOperator::Builder : public AbstractBellmanOperator::Builder<Builder> {
     friend class AbstractBellmanOperator::Builder<Builder>;
-
+    friend class Impl;
+    
 public:
     inline Builder& SetInitRadius(FloatT init_radius) {
         init_radius_ = init_radius;
@@ -72,7 +50,7 @@ public:
     }
 
 private:
-    StationaryBellmanOperatorPtr BuildImpl(AbstractBellmanOperator::Params&& params);
+    StationaryBellmanOperatorPtr BuildImpl();
 
     std::optional<FloatT> init_radius_;
     std::optional<FloatT> invariant_density_threshold_;

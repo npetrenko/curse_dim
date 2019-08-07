@@ -2,67 +2,119 @@
 #include <bellman/types.hpp>
 #include <thread_pool/for_loop.hpp>
 #include <glog/logging.h>
+#include <bellman/matrix.hpp>
 
 #ifndef NDEBUG
 #include <fenv.h>
 #endif
 
-UniformBellmanOperator::UniformBellmanOperator(AbstractBellmanOperator::Params&& params,
-                                               Params&& unif_params)
-    : AbstractBellmanOperator(std::move(params)), kParams(std::move(unif_params)) {
+class UniformBellmanOperator::Impl final : public AbstractBellmanOperator {
+    friend class UniformBellmanOperator::Builder;
+
+public:
+    Impl(UniformBellmanOperator::Builder&&);
+    void MakeIteration() override;
+
+    const DiscreteQFuncEst& GetQFunc() const& override {
+        return qfunc_primary_;
+    }
+
+    DiscreteQFuncEst GetQFunc() && override {
+        return std::move(qfunc_primary_);
+    }
+
+    const ConstantWeightedParticleCluster& GetSamplingDistribution() const override {
+        return *sampling_distribution_;
+    }
+
+private:
+    struct Params {
+        FloatT init_radius;
+    };
+
+    const Params kParams;
+
+    void NormalizeWeights();
+
+    Matrix<std::vector<FloatT>> additional_weights_;
+
+    DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
+    std::unique_ptr<ConstantWeightedParticleCluster> sampling_distribution_;
+};
+
+const DiscreteQFuncEst& UniformBellmanOperator::GetQFunc() const& {
+    return impl_->GetQFunc();
 }
 
-std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildImpl(
-    AbstractBellmanOperator::Params&& params) && {
+DiscreteQFuncEst UniformBellmanOperator::GetQFunc() && {
+    return std::move(*impl_).GetQFunc();
+}
+
+void UniformBellmanOperator::MakeIteration() {
+    impl_->MakeIteration();
+}
+
+const ConstantWeightedParticleCluster& UniformBellmanOperator::GetSamplingDistribution() const {
+    return impl_->GetSamplingDistribution();
+}
+
+UniformBellmanOperator::~UniformBellmanOperator() = default;
+UniformBellmanOperator::UniformBellmanOperator(Builder&& builder)
+    : impl_(std::make_unique<Impl>(std::move(builder))) {
+}
+
+UniformBellmanOperator::Impl::Impl(UniformBellmanOperator::Builder&& builder)
+    : AbstractBellmanOperator(std::move(builder)), kParams{builder.init_radius_.value()} {
+}
+
+std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildImpl() && {
     VLOG(4) << "Started building UniformBellmanOperator";
-    Params unif_params{init_radius_.value()};
+    auto op = std::unique_ptr<UniformBellmanOperator>(new UniformBellmanOperator(std::move(*this)));
+    auto* impl = op->impl_.get();
 
-    auto op = std::unique_ptr<UniformBellmanOperator>(
-        new UniformBellmanOperator(std::move(params), std::move(unif_params)));
-
-    op->additional_weights_ = Matrix(
+    impl->additional_weights_ = Matrix(
         {static_cast<MatrixDims::value_type>(num_particles_.value()),
-         static_cast<MatrixDims::value_type>(op->GetEnvParams().ac_kernel->GetNumActions())});
+         static_cast<MatrixDims::value_type>(impl->GetEnvParams().ac_kernel->GetNumActions())});
 
-    op->qfunc_primary_ =
+    impl->qfunc_primary_ =
         DiscreteQFuncEst{NumParticles(num_particles_.value()),
-                         NumActions(op->GetEnvParams().ac_kernel->GetNumActions())};
+                         NumActions(impl->GetEnvParams().ac_kernel->GetNumActions())};
 
-    op->qfunc_secondary_ =
+    impl->qfunc_secondary_ =
         DiscreteQFuncEst{NumParticles(num_particles_.value()),
-                         NumActions(op->GetEnvParams().ac_kernel->GetNumActions())};
+                         NumActions(impl->GetEnvParams().ac_kernel->GetNumActions())};
 
     std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
     RandomVectorizingInitializer initializer{
-        ParticleDim{op->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.value(), distr,
+        ParticleDim{impl->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.value(), distr,
         ClusterInitializationTag()};
 
     VLOG(4) << "Setting ParticleCluster";
     {
         auto particle_cluster =
             std::make_shared<ParticleCluster>(NumParticles(num_particles_.value()), initializer);
-        op->qfunc_primary_.SetParticleCluster(particle_cluster);
-        op->qfunc_secondary_.SetParticleCluster(std::move(particle_cluster));
+        impl->qfunc_primary_.SetParticleCluster(particle_cluster);
+        impl->qfunc_secondary_.SetParticleCluster(std::move(particle_cluster));
     }
     {
         VLOG(4) << "Initializing QFunctions";
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
-        op->qfunc_primary_.SetRandom(random_device_.value(), q_init);
-        op->qfunc_secondary_.SetRandom(random_device_.value(), q_init);
+        impl->qfunc_primary_.SetRandom(random_device_.value(), q_init);
+        impl->qfunc_secondary_.SetRandom(random_device_.value(), q_init);
     }
 
-    op->NormalizeWeights();
+    impl->NormalizeWeights();
     {
         FloatT weight =
-            pow(1 / (2 * init_radius_.value()), op->GetEnvParams().ac_kernel->GetSpaceDim());
+            pow(1 / (2 * init_radius_.value()), impl->GetEnvParams().ac_kernel->GetSpaceDim());
         VLOG(4) << "Initializing ConstantWeightedParticleCluster as sampling distribution";
-        op->sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(
-            op->qfunc_primary_.GetParticleCluster(), weight);
+        impl->sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(
+            impl->qfunc_primary_.GetParticleCluster(), weight);
     }
     return op;
 }
 
-void UniformBellmanOperator::MakeIteration() {
+void UniformBellmanOperator::Impl::MakeIteration() {
 #ifndef NDEBUG
     feenableexcept(FE_INVALID | FE_OVERFLOW);
 #endif
@@ -95,7 +147,7 @@ void UniformBellmanOperator::MakeIteration() {
     std::swap(qfunc_primary_, qfunc_secondary_);
 }
 
-void UniformBellmanOperator::NormalizeWeights() {
+void UniformBellmanOperator::Impl::NormalizeWeights() {
     VLOG(4) << "Normalizing weights";
     const ParticleCluster& cluster = qfunc_primary_.GetParticleCluster();
     const auto num_actions = GetEnvParams().ac_kernel->GetNumActions();

@@ -26,7 +26,7 @@ public:
     }
 
     inline std::shared_ptr<VectorWeightedParticleCluster> GetClusterPtr() const {
-	return cluster_;
+        return cluster_;
     }
 
 private:
@@ -42,7 +42,7 @@ class StationaryDensityEstimator::Builder {
 public:
     inline Builder& SetClusterSize(size_t size) {
         cluster_size_ = NumParticles{size};
-	return *this;
+        return *this;
     }
 
     template <class S>
@@ -57,7 +57,7 @@ public:
 
         primary_cluster_builder_ = std::move(prim_init);
         secondary_cluster_builder_ = std::move(sec_init);
-	return *this;
+        return *this;
     }
 
     inline std::shared_ptr<VectorWeightedParticleCluster> GetParticleClusterPtr() {
@@ -67,7 +67,7 @@ public:
 
     inline Builder& SetKernel(IKernel* kernel) {
         kernel_ = kernel;
-	return *this;
+        return *this;
     }
 
     std::unique_ptr<StationaryDensityEstimator> Build() &&;

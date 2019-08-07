@@ -42,7 +42,8 @@ protected:
     }
 
 protected:
-    AbstractBellmanOperator(Params&& params);
+    template <class Derived>
+    AbstractBellmanOperator(Builder<Derived>&& builder);
 
 private:
     const Params kParams;
@@ -50,6 +51,8 @@ private:
 
 template <class Derived>
 class AbstractBellmanOperator::Builder : public CRTPDerivedCaster<Derived> {
+    friend class AbstractBellmanOperator;
+
 public:
     Builder() = default;
 
@@ -70,19 +73,33 @@ public:
 
     auto Build() && {
         try {
-            Params params{num_particles_.value(), random_device_.value(),
-                          std::move(env_params_.value())};
-            return static_cast<Derived&&>(*this).BuildImpl(std::move(params));
+            return static_cast<Derived&&>(*this).BuildImpl();
         } catch (std::bad_optional_access& e) {
             throw BuilderNotInitialized();
         }
     };
+
+private:
+    Params CreateParams() && {
+        try {
+            Params params{num_particles_.value(), random_device_.value(),
+                          std::move(env_params_.value())};
+            return params;
+        } catch (std::bad_optional_access& e) {
+            throw BuilderNotInitialized();
+        }
+    }
 
 protected:
     std::optional<EnvParams> env_params_;
     std::optional<std::mt19937*> random_device_;
     std::optional<size_t> num_particles_;
 };
+
+template <class Derived>
+AbstractBellmanOperator::AbstractBellmanOperator(Builder<Derived>&& builder)
+    : kParams(std::move(builder).CreateParams()) {
+}
 
 template <class WPCType>
 struct PrevSampleReweighingHelper {

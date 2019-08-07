@@ -1,59 +1,32 @@
 #pragma once
 
-#include "../bellman.hpp"
-#include "../kernel.hpp"
-#include "../particle.hpp"
-#include "qfunc.hpp"
-#include "environment.hpp"
 #include "abstract_bellman.hpp"
-#include "../density_estimators/stationary_estimator.hpp"
-
-#include <random>
-#include <cassert>
 #include <optional>
-
-#include "../matrix.hpp"
 
 class UniformBellmanOperator;
 using UniformBellmanOperatorPtr = std::unique_ptr<UniformBellmanOperator>;
 
-
-class UniformBellmanOperator : public AbstractBellmanOperator {
+class UniformBellmanOperator : public IBellmanOperator {
 public:
     class Builder;
     void MakeIteration() override;
+    const DiscreteQFuncEst& GetQFunc() const& override;
+    DiscreteQFuncEst GetQFunc() && override;
+    const ConstantWeightedParticleCluster& GetSamplingDistribution() const override;
 
-    inline const DiscreteQFuncEst& GetQFunc() const& override {
-        return qfunc_primary_;
-    }
-    
-    inline DiscreteQFuncEst GetQFunc() && override {
-        return std::move(qfunc_primary_);
-    }
-
-    inline const ConstantWeightedParticleCluster& GetSamplingDistribution() const override {
-        return *sampling_distribution_;
-    }
+    ~UniformBellmanOperator();
 
 private:
-    struct Params {
-        FloatT init_radius;
-    };
+    class Impl;
+    UniformBellmanOperator(Builder&&);
 
-    const Params kParams;
-
-    UniformBellmanOperator(AbstractBellmanOperator::Params&&, Params&&);
-    void NormalizeWeights();
-
-    Matrix<std::vector<FloatT>> additional_weights_;
-
-    DiscreteQFuncEst qfunc_primary_, qfunc_secondary_;
-    std::unique_ptr<ConstantWeightedParticleCluster> sampling_distribution_;
+    std::unique_ptr<Impl> impl_;
 };
 
 class UniformBellmanOperator::Builder
     : public AbstractBellmanOperator::Builder<UniformBellmanOperator::Builder> {
     friend class AbstractBellmanOperator::Builder<UniformBellmanOperator::Builder>;
+    friend class Impl;
 
 public:
     Builder() = default;
@@ -64,7 +37,7 @@ public:
     }
 
 private:
-    std::unique_ptr<UniformBellmanOperator> BuildImpl(AbstractBellmanOperator::Params&&) &&;
+    std::unique_ptr<UniformBellmanOperator> BuildImpl() &&;
 
     std::optional<FloatT> init_radius_;
 };

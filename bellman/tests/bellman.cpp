@@ -7,6 +7,7 @@
 #include <bellman/bellman_operators/stationary_operator.hpp>
 #include <bellman/bellman_operators/qfunc.hpp>
 #include <bellman/bellman_operators/environment.hpp>
+#include <bellman/density_estimators/stationary_estimator.hpp>
 
 #include <gtest/gtest.h>
 #include <glog/logging.h>
