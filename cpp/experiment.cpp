@@ -27,10 +27,10 @@ FloatT AbstractExperiment::Score() {
     std::vector<std::mt19937> rds;
     rds.reserve(kNumRuns);
     {
-	std::mt19937 init = kParams.random_device_for_scoring;
-	for (size_t i = 0; i < kNumRuns; ++i) {
-	    rds.emplace_back(init());
-	}
+        std::mt19937 init = kParams.random_device_for_scoring;
+        for (size_t i = 0; i < kNumRuns; ++i) {
+            rds.emplace_back(init());
+        }
     }
 
     GreedyPolicy policy{*qfunc_est};
@@ -43,7 +43,7 @@ FloatT AbstractExperiment::Score() {
         Particle state{ConstantInitializer(0., ParticleDim{mdp_kernel.GetSpaceDim()})};
         Particle evolve_to(state);
 
-	const int kNumSteps = 200;
+        const int kNumSteps = 200;
         for (int step = 0; step < kNumSteps; ++step) {
             size_t action = mdp_kernel.CalculateHint(state);
             reward += GetEnvParams().reward_function(state, action);
@@ -73,7 +73,7 @@ void AbstractExperiment::MakeIteration(IterType type) {
             num_iter = 1;
             break;
         case IterType::kExhaustion:
-            num_iter = kParams.target_num_iterations.value();
+            num_iter = kParams.target_num_iterations.Value();
             break;
         default:
             throw std::runtime_error("Unknown IterType");
@@ -86,16 +86,16 @@ void AbstractExperiment::MakeIteration(IterType type) {
             last_iteration_data_.iter_duration =
                 std::chrono::duration_cast<DurT>(end_time - begin_time);
             --num_iter;
-	    ++last_iteration_data_.iter_num;
+            ++last_iteration_data_.iter_num;
         }
-    } catch(...) {
-	last_iteration_data_.Reset();
-	throw;
+    } catch (...) {
+        last_iteration_data_.Reset();
+        throw;
     }
 
     for (size_t iter = 0; iter < num_iter; ++iter) {
-	++last_iteration_data_.iter_num;
-	MakeIterationImpl();
+        ++last_iteration_data_.iter_num;
+        MakeIterationImpl();
     }
 }
 
@@ -138,17 +138,13 @@ Builder& Builder::SetRandomDevice(const std::mt19937& rd) {
 }
 
 AbstractExperiment::Params Builder::Build() && {
-    try {
-        EnvParams environment =
-            BuildEnvironment(num_pendulums_.value(), random_device_.value().rd_ptr.get());
-        std::mt19937 scoring_rd = *random_device_.value().rd_ptr;
-        return {num_particles_.value(),
-                num_iterations_,
-                num_pendulums_.value(),
-                std::move(environment),
-                std::move(random_device_.value().rd_ptr),
-                scoring_rd};
-    } catch (std::bad_optional_access&) {
-        throw BuilderNotInitialized();
-    }
+    EnvParams environment =
+        BuildEnvironment(num_pendulums_.Value(), random_device_.Value().rd_ptr.get());
+    std::mt19937 scoring_rd = *random_device_.Value().rd_ptr;
+    return {num_particles_.Value(),
+            num_iterations_,
+            num_pendulums_.Value(),
+            std::move(environment),
+            std::move(random_device_.Value().rd_ptr),
+            scoring_rd};
 }

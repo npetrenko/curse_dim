@@ -1,7 +1,7 @@
 #pragma once
 
 #include "abstract_bellman.hpp"
-#include <optional>
+#include "../builder.hpp"
 
 class UniformBellmanOperator;
 using UniformBellmanOperatorPtr = std::unique_ptr<UniformBellmanOperator>;
@@ -38,6 +38,5 @@ public:
 
 private:
     std::unique_ptr<UniformBellmanOperator> BuildImpl() &&;
-
-    std::optional<FloatT> init_radius_;
+    BuilderOption<FloatT> init_radius_{"init_radius_"};
 };

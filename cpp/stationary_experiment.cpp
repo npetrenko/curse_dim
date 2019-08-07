@@ -10,23 +10,23 @@ public:
     }
 
     std::string GetName() const override {
-	return "StationaryExperiment";
+        return "StationaryExperiment";
     }
 
 public:
     void MakeIterationImpl() override {
-	last_qfunc_est_.reset(nullptr);
-	MaybeInitializeBellmanOp();
-	bellman_op_->MakeIteration();
+        last_qfunc_est_.reset(nullptr);
+        MaybeInitializeBellmanOp();
+        bellman_op_->MakeIteration();
     }
 
     IQFuncEstimate* EstimateQFuncImpl() override {
-	if (!bellman_op_) {
-	    throw BuilderNotInitialized();
-	}
-	if (last_qfunc_est_) {
-	    return last_qfunc_est_.get();
-	}
+        if (!bellman_op_) {
+            throw ExperimentNotRunException();
+        }
+        if (last_qfunc_est_) {
+            return last_qfunc_est_.get();
+        }
 
         auto rew_helper = [sampling_distr =
                                bellman_op_->GetSamplingDistribution()](size_t sample_index) {

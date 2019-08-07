@@ -27,8 +27,10 @@ private:
 class StationaryBellmanOperator::Builder : public AbstractBellmanOperator::Builder<Builder> {
     friend class AbstractBellmanOperator::Builder<Builder>;
     friend class Impl;
-    
+
 public:
+    Builder() = default;
+
     inline Builder& SetInitRadius(FloatT init_radius) {
         init_radius_ = init_radius;
         return *this;
@@ -52,8 +54,8 @@ public:
 private:
     StationaryBellmanOperatorPtr BuildImpl();
 
-    std::optional<FloatT> init_radius_;
-    std::optional<FloatT> invariant_density_threshold_;
-    std::optional<FloatT> density_ratio_threshold_;
-    std::optional<size_t> num_burnin_;
+    BuilderOption<FloatT> init_radius_{"init_radius_"};
+    BuilderOption<FloatT> invariant_density_threshold_{"invariant_density_threshold_"};
+    BuilderOption<FloatT> density_ratio_threshold_{"density_ratio_threshold_"};
+    BuilderOption<size_t> num_burnin_{"num_burnin_"};
 };

@@ -6,6 +6,7 @@
 #include "../particle_storage.hpp"
 #include "../util.hpp"
 #include "../type_traits.hpp"
+#include "../builder.hpp"
 #include "weighted_particle_clusters.hpp"
 
 class StationaryDensityEstimator {
@@ -48,10 +49,10 @@ public:
     template <class S>
     Builder& SetInitializer(const AbstractInitializer<S, MemoryView>& initializer) {
         auto prim_init = [init = type_traits::GetDeepestLevelCopy(initializer), this] {
-            return std::make_shared<VectorWeightedParticleCluster>(cluster_size_.value(), init);
+            return std::make_shared<VectorWeightedParticleCluster>(cluster_size_.Value(), init);
         };
         auto sec_init = [this, dim = initializer.GetDim()] {
-            return ParticleCluster(cluster_size_.value(),
+            return ParticleCluster(cluster_size_.Value(),
                                    EmptyInitializer(ParticleDim(dim), ClusterInitializationTag()));
         };
 
@@ -74,11 +75,11 @@ public:
 
 private:
     void MaybeInitPrimary();
-    std::optional<NumParticles> cluster_size_;
-    std::optional<std::function<std::shared_ptr<VectorWeightedParticleCluster>()>>
-        primary_cluster_builder_;
-    std::optional<std::function<ParticleCluster()>> secondary_cluster_builder_;
-    std::optional<IKernel*> kernel_;
+    BuilderOption<NumParticles> cluster_size_{"cluster_size_"};
+    BuilderOption<std::function<std::shared_ptr<VectorWeightedParticleCluster>()>>
+        primary_cluster_builder_{"initializer"};
+    BuilderOption<std::function<ParticleCluster()>> secondary_cluster_builder_{"initializer"};
+    BuilderOption<IKernel*> kernel_{"kernel_"};
 
     std::optional<std::shared_ptr<VectorWeightedParticleCluster>> primary_cluster_;
 };

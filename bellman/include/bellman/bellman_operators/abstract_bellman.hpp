@@ -3,6 +3,7 @@
 #include "qfunc.hpp"
 #include "environment.hpp"
 #include "../density_estimators/weighted_particle_clusters.hpp"
+#include "../builder.hpp"
 
 class IBellmanOperator {
 public:
@@ -72,28 +73,20 @@ public:
     }
 
     auto Build() && {
-        try {
-            return static_cast<Derived&&>(*this).BuildImpl();
-        } catch (std::bad_optional_access& e) {
-            throw BuilderNotInitialized();
-        }
+        return static_cast<Derived&&>(*this).BuildImpl();
     };
 
 private:
     Params CreateParams() && {
-        try {
-            Params params{num_particles_.value(), random_device_.value(),
-                          std::move(env_params_.value())};
-            return params;
-        } catch (std::bad_optional_access& e) {
-            throw BuilderNotInitialized();
-        }
+        Params params{num_particles_.Value(), random_device_.Value(),
+                      std::move(env_params_.Value())};
+        return params;
     }
 
 protected:
-    std::optional<EnvParams> env_params_;
-    std::optional<std::mt19937*> random_device_;
-    std::optional<size_t> num_particles_;
+    BuilderOption<EnvParams> env_params_{"env_params_"};
+    BuilderOption<std::mt19937*> random_device_{"random_device_"};
+    BuilderOption<size_t> num_particles_{"num_particles_"};
 };
 
 template <class Derived>

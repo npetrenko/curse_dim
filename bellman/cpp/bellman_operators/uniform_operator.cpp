@@ -64,7 +64,7 @@ UniformBellmanOperator::UniformBellmanOperator(Builder&& builder)
 }
 
 UniformBellmanOperator::Impl::Impl(UniformBellmanOperator::Builder&& builder)
-    : AbstractBellmanOperator(std::move(builder)), kParams{builder.init_radius_.value()} {
+    : AbstractBellmanOperator(std::move(builder)), kParams{builder.init_radius_.Value()} {
 }
 
 std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildImpl() && {
@@ -73,40 +73,40 @@ std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildIm
     auto* impl = op->impl_.get();
 
     impl->additional_weights_ = Matrix(
-        {static_cast<MatrixDims::value_type>(num_particles_.value()),
+        {static_cast<MatrixDims::value_type>(num_particles_.Value()),
          static_cast<MatrixDims::value_type>(impl->GetEnvParams().ac_kernel->GetNumActions())});
 
     impl->qfunc_primary_ =
-        DiscreteQFuncEst{NumParticles(num_particles_.value()),
+        DiscreteQFuncEst{NumParticles(num_particles_.Value()),
                          NumActions(impl->GetEnvParams().ac_kernel->GetNumActions())};
 
     impl->qfunc_secondary_ =
-        DiscreteQFuncEst{NumParticles(num_particles_.value()),
+        DiscreteQFuncEst{NumParticles(num_particles_.Value()),
                          NumActions(impl->GetEnvParams().ac_kernel->GetNumActions())};
 
-    std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
+    std::uniform_real_distribution<FloatT> distr{-init_radius_.Value(), init_radius_.Value()};
     RandomVectorizingInitializer initializer{
-        ParticleDim{impl->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.value(), distr,
+        ParticleDim{impl->GetEnvParams().ac_kernel->GetSpaceDim()}, random_device_.Value(), distr,
         ClusterInitializationTag()};
 
     VLOG(4) << "Setting ParticleCluster";
     {
         auto particle_cluster =
-            std::make_shared<ParticleCluster>(NumParticles(num_particles_.value()), initializer);
+            std::make_shared<ParticleCluster>(NumParticles(num_particles_.Value()), initializer);
         impl->qfunc_primary_.SetParticleCluster(particle_cluster);
         impl->qfunc_secondary_.SetParticleCluster(std::move(particle_cluster));
     }
     {
         VLOG(4) << "Initializing QFunctions";
         std::uniform_real_distribution<FloatT> q_init{-0.01, 0.01};
-        impl->qfunc_primary_.SetRandom(random_device_.value(), q_init);
-        impl->qfunc_secondary_.SetRandom(random_device_.value(), q_init);
+        impl->qfunc_primary_.SetRandom(random_device_.Value(), q_init);
+        impl->qfunc_secondary_.SetRandom(random_device_.Value(), q_init);
     }
 
     impl->NormalizeWeights();
     {
         FloatT weight =
-            pow(1 / (2 * init_radius_.value()), impl->GetEnvParams().ac_kernel->GetSpaceDim());
+            pow(1 / (2 * init_radius_.Value()), impl->GetEnvParams().ac_kernel->GetSpaceDim());
         VLOG(4) << "Initializing ConstantWeightedParticleCluster as sampling distribution";
         impl->sampling_distribution_ = std::make_unique<ConstantWeightedParticleCluster>(
             impl->qfunc_primary_.GetParticleCluster(), weight);

@@ -87,26 +87,17 @@ void StationaryDensityEstimator::MakeWeighing() {
 using Builder = StationaryDensityEstimator::Builder;
 void Builder::MaybeInitPrimary() {
     if (!primary_cluster_) {
-        try {
-            primary_cluster_ = primary_cluster_builder_.value()();
-        } catch (std::bad_optional_access&) {
-            throw BuilderNotInitialized();
-        }
+        primary_cluster_ = primary_cluster_builder_.Value()();
     }
 }
 
 std::unique_ptr<StationaryDensityEstimator> Builder::Build() && {
-    try {
-        auto estimator =
-            std::unique_ptr<StationaryDensityEstimator>(new StationaryDensityEstimator);
-        estimator->kernel_ = kernel_.value();
-        if (!primary_cluster_) {
-            MaybeInitPrimary();
-        }
-        estimator->cluster_ = std::move(primary_cluster_.value());
-        estimator->secondary_cluster_ = secondary_cluster_builder_.value()();
-        return estimator;
-    } catch (std::bad_optional_access&) {
-        throw BuilderNotInitialized();
+    auto estimator = std::unique_ptr<StationaryDensityEstimator>(new StationaryDensityEstimator);
+    estimator->kernel_ = kernel_.Value();
+    if (!primary_cluster_) {
+        MaybeInitPrimary();
     }
+    estimator->cluster_ = std::move(*primary_cluster_);
+    estimator->secondary_cluster_ = secondary_cluster_builder_.Value()();
+    return estimator;
 }

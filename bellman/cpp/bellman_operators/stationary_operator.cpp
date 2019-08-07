@@ -34,8 +34,8 @@ private:
     };
 
     static Params ConstructParams(StationaryBellmanOperator::Builder&& builder) {
-        return {builder.invariant_density_threshold_.value(),
-                builder.density_ratio_threshold_.value(), builder.init_radius_.value()};
+        return {builder.invariant_density_threshold_.Value(),
+                builder.density_ratio_threshold_.Value(), builder.init_radius_.Value()};
     }
 
     const Params kParams;
@@ -98,7 +98,7 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
 
     assert(init_radius_ > 0);
     {
-        std::uniform_real_distribution<FloatT> distr{-init_radius_.value(), init_radius_.value()};
+        std::uniform_real_distribution<FloatT> distr{-init_radius_.Value(), init_radius_.Value()};
         RandomVectorizingInitializer initializer{
             ParticleDim{impl->GetEnvParams().ac_kernel->GetSpaceDim()}, impl->GetRD(), distr,
             ClusterInitializationTag{}};
@@ -122,8 +122,8 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
         impl->qfunc_secondary_.SetRandom(impl->GetRD(), q_init);
     }
 
-    VLOG(4) << "Initializing particle cluster with " << num_burnin_.value() << " iterations";
-    impl->UpdateParticleCluster(num_burnin_.value());
+    VLOG(4) << "Initializing particle cluster with " << num_burnin_.Value() << " iterations";
+    impl->UpdateParticleCluster(num_burnin_.Value());
     VLOG(4) << "Cluster is initialized";
 
     return op;
