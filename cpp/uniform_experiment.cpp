@@ -1,5 +1,6 @@
 #include <curse_dim/pendulum.hpp>
 #include <curse_dim/experiment.hpp>
+#include <curse_dim/uniform_experiment.hpp>
 #include <bellman/bellman_operators/uniform_operator.hpp>
 #include <glog/logging.h>
 

@@ -28,7 +28,13 @@ function(prepend var prefix)
   set(${var} ${listVar} PARENT_SCOPE)
 endfunction()
 
-set(SOURCES pendulum.cpp uniform_experiment.cpp stationary_experiment.cpp experiment.cpp experiment_printer.cpp)
+set(SOURCES pendulum.cpp
+  uniform_experiment.cpp
+  stationary_experiment.cpp
+  random_experiment.cpp
+  experiment.cpp
+  experiment_printer.cpp)
+
 prepend(SOURCES ${CPP_DIR} ${SOURCES})
 add_library(curse_dim ${SOURCES})
 target_include_directories(curse_dim PUBLIC include)

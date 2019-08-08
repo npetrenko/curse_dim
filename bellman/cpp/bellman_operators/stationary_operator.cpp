@@ -55,10 +55,8 @@ StationaryBellmanOperator::Impl::Impl(StationaryBellmanOperator::Builder&& build
 }
 
 StationaryBellmanOperator::StationaryBellmanOperator(Builder&& builder)
-    : impl_(std::make_unique<Impl>(std::move(builder))) {
+    : impl_(MakePimplPtr<Impl>(std::move(builder))) {
 }
-
-StationaryBellmanOperator::~StationaryBellmanOperator() = default;
 
 const DiscreteQFuncEst& StationaryBellmanOperator::GetQFunc() const& {
     return impl_->GetQFunc();
@@ -81,7 +79,7 @@ std::unique_ptr<StationaryBellmanOperator> StationaryBellmanOperator::Builder::B
 
     auto op =
         std::unique_ptr<StationaryBellmanOperator>(new StationaryBellmanOperator(std::move(*this)));
-    auto* impl = op->impl_.get();
+    auto* impl = op->impl_.Get();
 
     {
         VLOG(4) << "Initializing QFunctions";

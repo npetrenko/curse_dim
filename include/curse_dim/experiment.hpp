@@ -66,6 +66,8 @@ private:
     };
 
 protected:
+    virtual std::pair<DurT, FloatT> RunScoring();
+
     IQFuncEstimate* EstimateQFunc();
     virtual IQFuncEstimate* EstimateQFuncImpl() = 0;
     virtual void MakeIterationImpl() = 0;

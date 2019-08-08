@@ -2,6 +2,7 @@
 
 #include "abstract_bellman.hpp"
 #include "../builder.hpp"
+#include "../pimpl_ptr.hpp"
 
 class UniformBellmanOperator;
 using UniformBellmanOperatorPtr = std::unique_ptr<UniformBellmanOperator>;
@@ -14,13 +15,14 @@ public:
     DiscreteQFuncEst GetQFunc() && override;
     const ConstantWeightedParticleCluster& GetSamplingDistribution() const override;
 
-    ~UniformBellmanOperator();
+    UniformBellmanOperator(UniformBellmanOperator&&) = default;
+    ~UniformBellmanOperator() = default;
 
 private:
     class Impl;
     UniformBellmanOperator(Builder&&);
 
-    std::unique_ptr<Impl> impl_;
+    PimplPtr<Impl> impl_;
 };
 
 class UniformBellmanOperator::Builder

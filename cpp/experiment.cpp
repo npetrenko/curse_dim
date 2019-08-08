@@ -14,11 +14,20 @@ EnvParams BuildEnvironment(NumPendulums num_pendulums, std::mt19937* rd) {
 }
 
 FloatT AbstractExperiment::Score() {
-    const size_t kNumRuns = 1000;
     if (last_score_data_.score) {
         return *last_score_data_.score;
     }
 
+    auto [dur, score] = RunScoring();
+
+    last_score_data_.sim_duration = dur;
+    last_score_data_.score = score;
+    VLOG(3) << "Finished scoring";
+    return *last_score_data_.score;
+}
+
+std::pair<AbstractExperiment::DurT, FloatT> AbstractExperiment::RunScoring() {
+    const size_t kNumRuns = 1000;
     IQFuncEstimate* qfunc_est = EstimateQFunc();
     if (!qfunc_est) {
         throw ExperimentNotRunException();
@@ -59,10 +68,8 @@ FloatT AbstractExperiment::Score() {
     auto begin_time = std::chrono::high_resolution_clock::now();
     scorer(kNumRuns - 1);
     auto end_time = std::chrono::high_resolution_clock::now();
-    last_score_data_.sim_duration = std::chrono::duration_cast<DurT>(end_time - begin_time);
-    last_score_data_.score = sum_score / kNumRuns;
-    VLOG(3) << "Finished scoring";
-    return *last_score_data_.score;
+    sum_score /= kNumRuns;
+    return {std::chrono::duration_cast<DurT>(end_time - begin_time), sum_score};
 }
 
 void AbstractExperiment::MakeIteration(IterType type) {

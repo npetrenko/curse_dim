@@ -58,9 +58,8 @@ const ConstantWeightedParticleCluster& UniformBellmanOperator::GetSamplingDistri
     return impl_->GetSamplingDistribution();
 }
 
-UniformBellmanOperator::~UniformBellmanOperator() = default;
 UniformBellmanOperator::UniformBellmanOperator(Builder&& builder)
-    : impl_(std::make_unique<Impl>(std::move(builder))) {
+    : impl_(MakePimplPtr<Impl>(std::move(builder))) {
 }
 
 UniformBellmanOperator::Impl::Impl(UniformBellmanOperator::Builder&& builder)
@@ -70,7 +69,7 @@ UniformBellmanOperator::Impl::Impl(UniformBellmanOperator::Builder&& builder)
 std::unique_ptr<UniformBellmanOperator> UniformBellmanOperator::Builder::BuildImpl() && {
     VLOG(4) << "Started building UniformBellmanOperator";
     auto op = std::unique_ptr<UniformBellmanOperator>(new UniformBellmanOperator(std::move(*this)));
-    auto* impl = op->impl_.get();
+    auto* impl = op->impl_.Get();
 
     impl->additional_weights_ = Matrix(
         {static_cast<MatrixDims::value_type>(num_particles_.Value()),

@@ -1,5 +1,6 @@
 #include <curse_dim/pendulum.hpp>
 #include <curse_dim/experiment.hpp>
+#include <curse_dim/stationary_experiment.hpp>
 #include <bellman/bellman_operators/stationary_operator.hpp>
 #include <glog/logging.h>
 

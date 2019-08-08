@@ -1,6 +1,8 @@
 #pragma once
 
 #include "abstract_bellman.hpp"
+#include "../pimpl_ptr.hpp"
+
 #include <optional>
 
 class StationaryBellmanOperator;
@@ -15,13 +17,14 @@ public:
     DiscreteQFuncEst GetQFunc() && override;
     const VectorWeightedParticleCluster& GetSamplingDistribution() const override;
 
-    ~StationaryBellmanOperator();
+    ~StationaryBellmanOperator() = default;
+    StationaryBellmanOperator(StationaryBellmanOperator&&) = default;
 
 private:
     StationaryBellmanOperator(Builder&&);
     class Impl;
 
-    std::unique_ptr<Impl> impl_;
+    PimplPtr<Impl> impl_;
 };
 
 class StationaryBellmanOperator::Builder : public AbstractBellmanOperator::Builder<Builder> {
